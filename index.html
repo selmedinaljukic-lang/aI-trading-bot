@@ -57,11 +57,25 @@ const sample={
  NVDA:[175,176,174,177,178,176,179,180,178,181,182,180,183,184,182,185,186,184,187,188,186,189,190,188,191,192,190,193,194,192],
  TSLA:[345,347,343,348,350,346,351,353,349,354,356,352,357,359,355,360,362,358,363,365,361,366,368,364,369,371,367,372,374,370]
 };
-const prices={AAPL:225,MSFT:510,NVDA:180,TSLA:350};
+let prices={AAPL:0,MSFT:0,NVDA:0,TSLA:0};
 let balance=1000,positions={},currentSignal="HOLD";
 function ema(values,period){let k=2/(period+1),v=values[0];for(let i=1;i<values.length;i++)v=values[i]*k+v*(1-k);return v}
 function rsi(values){let gains=0,losses=0;for(let i=values.length-14;i<values.length;i++){let d=values[i]-values[i-1];if(d>0)gains+=d;else losses-=d}if(losses===0)return 100;let rs=(gains/14)/(losses/14);return 100-100/(1+rs)}
-function analyze(){
+async function loadMarketPrices(){
+ try{
+  const response=await fetch("./prices.json");
+  const data=await response.json();
+  for(const s of Object.keys(prices)){
+   if(data.prices[s]){
+    prices[s]=data.prices[s].close;
+   }
+  }
+  analyze();
+ }catch(error){
+  console.error("Napaka pri nalaganju cen:",error);
+ }
+}
+ function analyze(){
  const s=document.getElementById("stock").value,v=sample[s],e9=ema(v,9),e21=ema(v,21),r=rsi(v);
  const macd=ema(v,12)-ema(v,26);
  let signal="HOLD",why="Kazalniki trenutno ne dajejo dovolj usklajenega signala.";
@@ -97,7 +111,7 @@ function trade(side){
  }
  render();
 }
-analyze();render();
+loadMarketPrices();render();
 </script>
 </body>
 </html>
