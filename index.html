@@ -5,397 +5,498 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#080f1c">
-<title>AL Trading Bot 3.0</title>
+<title>ALQYRON AI 4.0</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;padding:16px;background:#080f1c;color:#edf4ff;font-family:Arial,sans-serif}
-header{padding:16px 0;border-bottom:1px solid #263750}
-h1{color:#35d39a;margin:0;font-size:28px}
-.sub,small,.muted{color:#94a6bd}
+main{max-width:1000px;margin:auto}
+header{padding:16px 0 22px}
+h1{font-size:28px;letter-spacing:1px;margin:0}
+h2{font-size:17px;margin:0 0 14px}
+.sub,.muted,small{color:#91a5c1}
 .sub{font-size:12px;margin-top:7px}
-.card{background:#131f32;border:1px solid #293c56;border-radius:14px;padding:15px;margin-top:15px}
-h3{margin:0 0 12px}
-.balance{font-size:32px;font-weight:bold;color:#35d39a;margin:10px 0}
-select,input{width:100%;padding:12px;margin:7px 0;background:#091323;color:white;border:1px solid #40516a;border-radius:8px}
-button{border:0;border-radius:8px;padding:12px 16px;font-weight:bold;margin:5px 3px;cursor:pointer}
-.buy{background:#35d39a;color:#07140f}
-.sell{background:#ff6878;color:#26080d}
-.refresh{background:#334c70;color:white}
-.metric{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #293c56}
-.signal{font-size:22px;font-weight:bold;margin:12px 0}
-.green{color:#35d39a}
-.red{color:#ff6878}
-.yellow{color:#f4c76b}
-.stock-row{padding:12px 0;border-bottom:1px solid #293c56}
-.stock-head{display:flex;justify-content:space-between;gap:8px;align-items:center}
-.pill{font-size:12px;font-weight:bold;padding:5px 8px;border-radius:20px;background:#263750}
-.bar{height:8px;background:#263750;border-radius:8px;overflow:hidden;margin:8px 0}
-.bar>span{display:block;height:100%;background:#35d39a}
-.small{font-size:12px;color:#94a6bd}
-.history-item{padding:8px 0;border-bottom:1px solid #293c56;font-size:13px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.grid .metric{display:block}
+.card{background:#111d30;border:1px solid #293b54;border-radius:14px;padding:16px;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.metric{background:#0b1728;border-radius:10px;padding:13px;min-width:0}
+.metric small{display:block;font-size:11px;margin-bottom:8px}
+.metric strong{font-size:19px;overflow-wrap:anywhere}
+button,select{padding:12px;border-radius:9px;border:1px solid #344b68;background:#172944;color:white;font-size:13px}
+button{cursor:pointer}
+.primary{background:#1769d2}
+.buy{background:#087d59}
+.sell{background:#9e3046}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.actions button{flex:1}
+.status{background:#0b1728;padding:11px;border-radius:9px;font-size:12px;color:#a9bdd8;line-height:1.5}
+.signal{font-size:25px;font-weight:bold;margin:8px 0}
+.green{color:#37d99a}.red{color:#ff667a}.yellow{color:#f6c65b}
+.bar{height:8px;background:#26374c;border-radius:8px;overflow:hidden;margin-top:9px}
+.bar div{height:100%;background:#37d99a;width:0}
+canvas{width:100%;height:230px;display:block}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap}
+td,th{text-align:left;padding:10px 7px;border-bottom:1px solid #293b54}
+th{color:#91a5c1;font-weight:normal}
+.notice{font-size:11px;color:#91a5c1;line-height:1.6;margin-top:12px}
+@media(min-width:700px){.grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 </style>
 </head>
 <body>
+<main>
 <header>
-<h1>AL TRADING BOT</h1>
-<div class="sub">VERSION 3.0 · DAY TRADING · STOCKS</div>
+<h1>ALQYRON AI</h1>
+<div class="sub">VERSION 4.0 · STOCKS · DAY TRADING · PAPER TRADING</div>
 </header>
 
-<div class="card">
-<small>SIMULATED ACCOUNT BALANCE</small>
-<div class="balance" id="balance">$1,000.00</div>
-<small>Paper trading only · No real orders are sent</small>
-</div>
-
-<div class="card">
-<div class="stock-head">
-<h3>AUTO SCANNER</h3>
-<span class="pill" id="scanCount">0 / 4</span>
-</div>
-<p class="muted">Samodejna primerjava štirih delnic na podlagi zgodovinskih dnevnih podatkov.</p>
-<div id="scanner"><p class="muted">Nalagam podatke …</p></div>
-<button class="refresh" onclick="loadMarketPrices()">RESCAN ALL STOCKS</button>
-</div>
-
-<div class="card">
-<h3>Stock Analysis</h3>
-<select id="stock" onchange="analyze()">
-<option value="AAPL">Apple (AAPL)</option>
-<option value="MSFT">Microsoft (MSFT)</option>
-<option value="NVDA">NVIDIA (NVDA)</option>
-<option value="TSLA">Tesla (TSLA)</option>
-</select>
-<div class="metric"><span>Last daily close</span><b id="price">--</b></div>
-<div class="metric"><span>RSI (14)</span><b id="rsi">--</b></div>
-<div class="metric"><span>EMA 9</span><b id="ema9">--</b></div>
-<div class="metric"><span>EMA 21</span><b id="ema21">--</b></div>
-<div class="metric"><span>MACD (12,26)</span><b id="macd">--</b></div>
-<div class="metric"><span>Signal strength</span><b id="strength">--</b></div>
-<div class="signal yellow" id="signal">LOADING</div>
-<p class="muted" id="explanation">Nalagam analizo …</p>
+<section class="card">
+<h2>Portfolio overview</h2>
 <div class="grid">
-<div class="metric"><span class="small">Suggested stop loss</span><b id="stopLoss">--</b></div>
-<div class="metric"><span class="small">Suggested take profit</span><b id="takeProfit">--</b></div>
+<div class="metric"><small>Available cash</small><strong id="cash">$1,000.00</strong></div>
+<div class="metric"><small>Portfolio value</small><strong id="portfolio">$1,000.00</strong></div>
+<div class="metric"><small>Total P/L</small><strong id="totalpl">$0.00</strong></div>
+<div class="metric"><small>Open positions</small><strong id="openCount">0</strong></div>
 </div>
-<p class="small">Stop Loss 2% in Take Profit 4% sta informativna simulacijska nivoja, ne jamstvo rezultata.</p>
-<p class="muted" id="dataStatus">Historical daily data from Massive. Not real-time prices.</p>
-</div>
+</section>
 
-<div class="card">
-<h3>Simulated Trading</h3>
-<label for="amount">Amount (USD)</label>
-<input id="amount" type="number" value="100" min="1" step="1">
-<button class="buy" onclick="trade('BUY')">BUY</button>
-<button class="sell" onclick="trade('SELL')">SELL</button>
-<p id="message" class="muted">Demo trading only. Trades are not sent to a broker.</p>
+<section class="card">
+<h2>AI Market Scanner</h2>
+<div class="controls">
+<div>
+<label for="stock" class="muted">Select stock</label>
+<select id="stock">
+<option value="AAPL">Apple · AAPL</option>
+<option value="MSFT">Microsoft · MSFT</option>
+<option value="NVDA">NVIDIA · NVDA</option>
+<option value="TSLA">Tesla · TSLA</option>
+</select>
 </div>
+<div>
+<label for="risk" class="muted">Risk per trade</label>
+<select id="risk">
+<option value="0.005">0.5%</option>
+<option value="0.01" selected>1%</option>
+<option value="0.015">1.5%</option>
+</select>
+</div>
+</div>
+<div class="actions">
+<button class="primary" id="analyze">ANALYZE STOCK</button>
+<button id="refresh">REFRESH DATA</button>
+</div>
+<div class="status" id="dataStatus" style="margin-top:12px">Loading historical market data...</div>
+</section>
 
-<div class="card">
-<h3>Open Positions</h3>
-<div id="positions">No open positions.</div>
+<section class="card">
+<h2>Technical analysis</h2>
+<div class="grid">
+<div class="metric"><small>Last daily close</small><strong id="price">--</strong></div>
+<div class="metric"><small>RSI (14)</small><strong id="rsi">--</strong></div>
+<div class="metric"><small>EMA 9</small><strong id="ema9">--</strong></div>
+<div class="metric"><small>EMA 21</small><strong id="ema21">--</strong></div>
 </div>
+<div class="metric" style="margin-top:10px">
+<small>MACD (12,26)</small><strong id="macd">--</strong>
+</div>
+<div class="metric" style="margin-top:10px">
+<small>AI technical signal</small>
+<div class="signal yellow" id="signal">HOLD</div>
+<div class="muted" id="signalText" style="font-size:12px">Select a stock to analyze.</div>
+<div class="bar"><div id="strengthBar"></div></div>
+<div class="notice">Technical strength score: <strong id="strength">--</strong>. This is not a probability of profit.</div>
+</div>
+</section>
 
-<div class="card">
-<h3>Risk Management</h3>
-<div class="metric"><span>Account risk limit per trade</span><b>1% ($10.00)</b></div>
-<div class="metric"><span>Stop loss reference</span><b>2% below entry</b></div>
-<div class="metric"><span>Take profit reference</span><b>4% above entry</b></div>
-<div class="metric"><span>Trading mode</span><b class="green">SIMULATION</b></div>
-<div class="metric"><span>Automatic execution</span><b class="red">DISABLED</b></div>
-</div>
+<section class="card">
+<h2>Advanced price chart</h2>
+<div class="muted" id="chartTitle" style="font-size:12px;margin-bottom:10px">Historical daily closing prices</div>
+<canvas id="chart"></canvas>
+<div class="notice">Chart displays historical daily closing prices, not live intraday prices.</div>
+</section>
 
-<div class="card">
-<h3>Signal History</h3>
-<div id="signalHistory">No signals recorded yet.</div>
-<button class="refresh" onclick="clearHistory()">CLEAR HISTORY</button>
+<section class="card">
+<h2>Risk management</h2>
+<div class="grid">
+<div class="metric"><small>Suggested stop loss</small><strong id="stop">--</strong></div>
+<div class="metric"><small>Suggested take profit</small><strong id="target">--</strong></div>
+<div class="metric"><small>Maximum risk amount</small><strong id="riskAmount">--</strong></div>
+<div class="metric"><small>Suggested shares</small><strong id="shares">--</strong></div>
 </div>
+<div class="notice">Stop loss and take profit are reference levels only. The bot does not automatically execute orders at these prices.</div>
+</section>
 
-<div class="card">
-<h3>AL System</h3>
-<p>Strategy: Day Trading signal screening</p>
-<p>Indicators: RSI + EMA + MACD</p>
-<p>Coverage: AAPL · MSFT · NVDA · TSLA</p>
-<p class="yellow">Historical daily data only. Not connected to real-time market data or Interactive Brokers.</p>
+<section class="card">
+<h2>Simulated trading</h2>
+<div class="actions">
+<button class="buy" id="buy">BUY · PAPER TRADE</button>
+<button class="sell" id="closeAll">CLOSE ALL POSITIONS</button>
 </div>
+<div class="notice">Simulated transactions only. No real money or brokerage account is connected.</div>
+</section>
+
+<section class="card">
+<h2>Open positions</h2>
+<div class="tablewrap"><table>
+<thead><tr><th>Stock</th><th>Shares</th><th>Entry</th><th>Current</th><th>P/L</th><th>Action</th></tr></thead>
+<tbody id="positions"><tr><td colspan="6">No open positions.</td></tr></tbody>
+</table></div>
+</section>
+
+<section class="card">
+<h2>Trade history</h2>
+<div class="tablewrap"><table>
+<thead><tr><th>Stock</th><th>Shares</th><th>Entry</th><th>Exit</th><th>P/L</th></tr></thead>
+<tbody id="history"><tr><td colspan="5">No completed trades.</td></tr></tbody>
+</table></div>
+</section>
+
+<section class="card">
+<h2>Scanner overview</h2>
+<div class="tablewrap"><table>
+<thead><tr><th>Stock</th><th>Price</th><th>RSI</th><th>Signal</th></tr></thead>
+<tbody id="scanner"><tr><td colspan="4">Waiting for data...</td></tr></tbody>
+</table></div>
+</section>
+
+<section class="card">
+<h2>System information</h2>
+<div class="status" id="systemStatus">ALQYRON AI 4.0 · Initializing...</div>
+<div class="notice">Data source: Massive. Historical daily market data. Paper trading only. Technical indicators are educational tools, not financial advice.</div>
+</section>
+</main>
 
 <script>
-const tickers=["AAPL","MSFT","NVDA","TSLA"];
-const names={AAPL:"Apple",MSFT:"Microsoft",NVDA:"NVIDIA",TSLA:"Tesla"};
-const histories={},prices={},analyses={};
-let balance=1000,positions={},marketLoaded=false;
+const SYMBOLS=["AAPL","MSFT","NVDA","TSLA"];
+const INITIAL_CASH=1000;
+const KEY="alqyron_v4_state";
+let marketData={};
+let analysis=null;
+let state=loadState();
+
+function loadState(){
+ try{
+  const s=JSON.parse(localStorage.getItem(KEY));
+  if(s&&typeof s.cash==="number")return {
+   cash:s.cash,positions:s.positions||[],history:s.history||[]
+  };
+ }catch(e){}
+ return {cash:INITIAL_CASH,positions:[],history:[]};
+}
+function save(){localStorage.setItem(KEY,JSON.stringify(state))}
+function money(n){return Number.isFinite(n)?"$"+n.toFixed(2):"--"}
+function fmt(n){return Number.isFinite(n)?n.toFixed(2):"--"}
+
+function prices(symbol){
+ const item=marketData[symbol];
+ if(!item)return [];
+ const raw=item.history||item.results||item.prices||[];
+ if(!Array.isArray(raw))return [];
+ return raw.map(x=>{
+  if(typeof x==="number")return x;
+  return Number(x.close??x.c??x.price??x.value);
+ }).filter(x=>Number.isFinite(x)&&x>0);
+}
 
 function ema(values,period){
- if(values.length<period)return NaN;
+ if(values.length<period)return null;
  const k=2/(period+1);
- let value=values[0];
- for(let i=1;i<values.length;i++)value=values[i]*k+value*(1-k);
- return value;
+ let result=values.slice(0,period).reduce((a,b)=>a+b,0)/period;
+ for(let i=period;i<values.length;i++)result=values[i]*k+result*(1-k);
+ return result;
 }
 
 function rsi(values,period=14){
- if(values.length<=period)return NaN;
+ if(values.length<=period)return null;
  let gains=0,losses=0;
  for(let i=values.length-period;i<values.length;i++){
-  const change=values[i]-values[i-1];
-  if(change>0)gains+=change;
-  else losses-=change;
+  const diff=values[i]-values[i-1];
+  if(diff>0)gains+=diff;
+  else losses-=diff;
  }
- if(losses===0)return gains===0?50:100;
- return 100-(100/(1+(gains/period)/(losses/period)));
+ const avgGain=gains/period;
+ const avgLoss=losses/period;
+ if(avgLoss===0)return 100;
+ return 100-(100/(1+avgGain/avgLoss));
 }
 
 function calculate(symbol){
- const c=histories[symbol];
- if(!c||c.length<26)return null;
- const price=c[c.length-1];
- const e9=ema(c,9);
- const e21=ema(c,21);
- const macd=ema(c,12)-ema(c,26);
- const r=rsi(c,14);
-
- let score=0,why=[];
- if(e9>e21){score+=30;why.push("EMA trend bullish")}
- else{score-=30;why.push("EMA trend bearish")}
-
- if(macd>0){score+=25;why.push("MACD positive")}
- else{score-=25;why.push("MACD negative")}
-
- if(r>=50&&r<=70){score+=25;why.push("RSI momentum positive")}
- else if(r>70){score-=10;why.push("RSI overbought zone")}
- else if(r>=35){score+=10;why.push("RSI neutral")}
- else{score-=10;why.push("RSI weak")}
-
+ const values=prices(symbol);
+ if(values.length<27)return null;
+ const price=values[values.length-1];
+ const e9=ema(values,9);
+ const e21=ema(values,21);
+ const e12=ema(values,12);
+ const e26=ema(values,26);
+ const r=rsi(values);
+ const macd=e12-e26;
+ let score=50;
+ score+=price>e9?10:-10;
+ score+=e9>e21?15:-15;
+ score+=macd>0?15:-15;
+ score+=r>50?10:-10;
+ score=Math.max(0,Math.min(100,score));
  let signal="HOLD";
- if(score>=55)signal="BUY";
- else if(score<=-55)signal="SELL";
-
- const strength=Math.min(100,Math.round(Math.abs(score)));
-
- return {
-  symbol,price,e9,e21,macd,r,score,signal,strength,
-  stop:price*0.98,
-  target:price*1.04,
-  why:why.join(" · ")
- };
+ if(score>=70)signal="BUY";
+ if(score<=30)signal="SELL";
+ return {symbol,price,e9,e21,rsi:r,macd,score,signal,values};
 }
 
-function recordSignal(a){
- let items=[];
- try{items=JSON.parse(localStorage.getItem("al_signal_history")||"[]")}catch(e){}
- const last=items[0];
- if(last&&last.symbol===a.symbol&&last.signal===a.signal&&last.price===a.price)return;
-
- items.unshift({
-  symbol:a.symbol,
-  signal:a.signal,
-  strength:a.strength,
-  price:a.price,
-  time:new Date().toLocaleString()
+function drawChart(values){
+ const canvas=document.getElementById("chart");
+ const rect=canvas.getBoundingClientRect();
+ const ratio=window.devicePixelRatio||1;
+ canvas.width=Math.max(300,rect.width*ratio);
+ canvas.height=230*ratio;
+ const ctx=canvas.getContext("2d");
+ ctx.scale(ratio,ratio);
+ const w=canvas.width/ratio,h=230;
+ ctx.clearRect(0,0,w,h);
+ if(!values||values.length<2)return;
+ const data=values.slice(-60);
+ const min=Math.min(...data)*0.995;
+ const max=Math.max(...data)*1.005;
+ const pad=12;
+ const x=i=>pad+i*(w-pad*2)/(data.length-1);
+ const y=v=>h-pad-(v-min)/(max-min)*(h-pad*2);
+ ctx.strokeStyle="#293b53";
+ for(let i=0;i<4;i++){
+  const yy=pad+i*(h-pad*2)/3;
+  ctx.beginPath();ctx.moveTo(pad,yy);ctx.lineTo(w-pad,yy);ctx.stroke();
+ }
+ ctx.strokeStyle="#42b7ff";
+ ctx.lineWidth=2;
+ ctx.beginPath();
+ data.forEach((v,i)=>{
+  if(i===0)ctx.moveTo(x(i),y(v));
+  else ctx.lineTo(x(i),y(v));
  });
- items=items.slice(0,20);
-
- try{localStorage.setItem("al_signal_history",JSON.stringify(items))}catch(e){}
- renderHistory();
+ ctx.stroke();
+ ctx.fillStyle="#91a5c1";
+ ctx.font="10px Arial";
+ ctx.fillText(money(max),pad,10);
+ ctx.fillText(money(min),pad,h-2);
 }
+</script>
+function updateAnalysis(){
+ const symbol=document.getElementById("stock").value;
+ const a=calculate(symbol);
+ analysis=a;
 
-function renderHistory(){
- let items=[];
- try{items=JSON.parse(localStorage.getItem("al_signal_history")||"[]")}catch(e){}
- const el=document.getElementById("signalHistory");
-
- if(!items.length){
-  el.textContent="No signals recorded yet.";
+ if(!a){
+  document.getElementById("signal").textContent="NO DATA";
+  document.getElementById("signalText").textContent="Not enough historical data.";
+  document.getElementById("dataStatus").textContent="Data unavailable for "+symbol;
   return;
  }
 
- el.innerHTML=items.map(x=>
-  '<div class="history-item"><b>'+x.symbol+'</b> · <span class="'+(x.signal==="BUY"?"green":x.signal==="SELL"?"red":"yellow")+'">'+x.signal+'</span> · '+x.strength+'% · $'+Number(x.price).toFixed(2)+'<br><span class="small">'+x.time+'</span></div>'
- ).join("");
-}
+ document.getElementById("price").textContent=money(a.price);
+ document.getElementById("rsi").textContent=fmt(a.rsi);
+ document.getElementById("ema9").textContent=money(a.e9);
+ document.getElementById("ema21").textContent=money(a.e21);
+ document.getElementById("macd").textContent=fmt(a.macd);
+ document.getElementById("signal").textContent=a.signal;
+ document.getElementById("signal").className="signal "+(a.signal==="BUY"?"green":a.signal==="SELL"?"red":"yellow");
+ document.getElementById("signalText").textContent=
+  a.signal==="BUY"?"Technical indicators show a positive trend.":
+  a.signal==="SELL"?"Technical indicators show a negative trend.":
+  "Indicators do not show a sufficiently clear direction.";
+ document.getElementById("strength").textContent=a.score+"/100";
+ document.getElementById("strengthBar").style.width=a.score+"%";
+ document.getElementById("chartTitle").textContent=symbol+" · Historical daily prices";
+ drawChart(a.values);
 
-function clearHistory(){
- try{localStorage.removeItem("al_signal_history")}catch(e){}
- renderHistory();
-}
+ const risk=Number(document.getElementById("risk").value);
+ const stop=a.price*0.98;
+ const target=a.price*1.04;
+ const amount=state.cash*risk;
+ const shares=Math.max(0,Math.floor(Math.min(amount/(a.price-stop),state.cash/a.price)));
 
-function renderScanner(){
- const el=document.getElementById("scanner");
- const list=tickers.map(s=>analyses[s]).filter(Boolean).sort((a,b)=>b.strength-a.strength);
-
- document.getElementById("scanCount").textContent=list.length+" / 4";
-
- if(!list.length){
-  el.innerHTML='<p class="muted">No historical data available yet.</p>';
-  return;
- }
-
- el.innerHTML=list.map(a=>
-  '<div class="stock-row"><div class="stock-head"><b>'+names[a.symbol]+' ('+a.symbol+')</b><span class="pill '+(a.signal==="BUY"?"green":a.signal==="SELL"?"red":"yellow")+'">'+a.signal+'</span></div><div class="stock-head"><span>$'+a.price.toFixed(2)+'</span><b>'+a.strength+'% strength</b></div><div class="bar"><span style="width:'+a.strength+'%"></span></div><div class="small">RSI '+a.r.toFixed(1)+' · EMA9 '+a.e9.toFixed(2)+' · EMA21 '+a.e21.toFixed(2)+'</div></div>'
- ).join("");
-}
-
-function analyze(){
- const s=document.getElementById("stock").value;
- const a=analyses[s];
-
- if(!a){setSelectedWait();return}
-
- document.getElementById("price").textContent="$"+a.price.toFixed(2);
- document.getElementById("rsi").textContent=a.r.toFixed(2);
- document.getElementById("ema9").textContent="$"+a.e9.toFixed(2);
- document.getElementById("ema21").textContent="$"+a.e21.toFixed(2);
- document.getElementById("macd").textContent=a.macd.toFixed(4);
- document.getElementById("strength").textContent=a.strength+"%";
- document.getElementById("stopLoss").textContent="$"+a.stop.toFixed(2);
- document.getElementById("takeProfit").textContent="$"+a.target.toFixed(2);
-
- const el=document.getElementById("signal");
- el.textContent=a.signal;
- el.className="signal "+(a.signal==="BUY"?"green":a.signal==="SELL"?"red":"yellow");
-
- document.getElementById("explanation").textContent=a.why+". Signal je tehnična ocena zgodovinskih podatkov, ne napoved ali zagotovilo.";
-}
-
-function setSelectedWait(){
- ["price","rsi","ema9","ema21","macd","strength","stopLoss","takeProfit"].forEach(id=>{
-  document.getElementById(id).textContent="--";
- });
- const el=document.getElementById("signal");
- el.textContent="WAIT";
- el.className="signal yellow";
- document.getElementById("explanation").textContent="Za izbrano delnico ni dovolj zgodovinskih podatkov.";
-}
-
-async function loadMarketPrices(){
- const status=document.getElementById("dataStatus");
- status.textContent="Nalagam zgodovinske dnevne podatke …";
- document.getElementById("scanner").innerHTML='<p class="muted">Scanning AAPL, MSFT, NVDA and TSLA …</p>';
-
- try{
-  const response=await fetch("./prices.json?refresh="+Date.now(),{cache:"no-store"});
-  if(!response.ok)throw new Error("HTTP "+response.status);
-
-  const data=await response.json();
-  if(!data.prices)throw new Error("V datoteki ni podatkov o cenah.");
-
-  for(const s of tickers){
-   const stock=data.prices[s];
-   if(!stock||!Array.isArray(stock.history))continue;
-
-   const closes=stock.history.map(x=>Number(x.close)).filter(x=>Number.isFinite(x)&&x>0);
-
-   if(closes.length>=26){
-    histories[s]=closes;
-    prices[s]=closes[closes.length-1];
-    analyses[s]=calculate(s);
-    if(analyses[s])recordSignal(analyses[s]);
-   }
-  }
-
-  if(!Object.keys(analyses).length){
-   throw new Error("Ni dovolj zgodovinskih podatkov za izračun.");
-  }
-
-  marketLoaded=true;
-  renderScanner();
-  analyze();
-  render();
-
-  status.textContent="Vir: Massive · "+(data.updated_at||"datum posodobitve ni naveden")+" · zgodovinski dnevni podatki, niso cene v realnem času.";
-
- }catch(error){
-  console.error(error);
-  status.textContent="Napaka pri nalaganju podatkov: "+error.message;
-  document.getElementById("scanner").textContent="Podatkov ni bilo mogoče naložiti.";
-  const el=document.getElementById("signal");
-  el.textContent="DATA ERROR";
-  el.className="signal red";
-  document.getElementById("explanation").textContent="Preveri, ali je datoteka prices.json objavljena.";
- }
+ document.getElementById("stop").textContent=money(stop);
+ document.getElementById("target").textContent=money(target);
+ document.getElementById("riskAmount").textContent=money(amount);
+ document.getElementById("shares").textContent=shares;
+ document.getElementById("dataStatus").textContent=
+  "Data loaded · "+symbol+" · "+a.values.length+" daily closing prices";
 }
 
 function render(){
- document.getElementById("balance").textContent="$"+balance.toFixed(2);
- const el=document.getElementById("positions");
- const keys=Object.keys(positions);
+ let marketValue=0;
+ let unrealized=0;
 
- if(!keys.length){
-  el.textContent="No open positions.";
-  return;
- }
-
- el.innerHTML=keys.map(s=>{
-  const p=positions[s];
-  const current=prices[s]||p.entry;
+ const rows=state.positions.map((p,i)=>{
+  const a=calculate(p.symbol);
+  const current=a?a.price:p.entry;
+  const value=current*p.shares;
   const pl=(current-p.entry)*p.shares;
-
-  return '<div class="stock-row"><b>'+s+'</b><div class="metric"><span>Shares</span><b>'+p.shares.toFixed(4)+'</b></div><div class="metric"><span>Entry</span><b>$'+p.entry.toFixed(2)+'</b></div><div class="metric"><span>Stop loss</span><b>$'+p.stop.toFixed(2)+'</b></div><div class="metric"><span>Take profit</span><b>$'+p.target.toFixed(2)+'</b></div><div class="metric"><span>Unrealized P/L</span><b class="'+(pl>=0?"green":"red")+'">$'+pl.toFixed(2)+'</b></div></div>';
+  marketValue+=value;
+  unrealized+=pl;
+  return `<tr>
+   <td>${p.symbol}</td>
+   <td>${p.shares}</td>
+   <td>${money(p.entry)}</td>
+   <td>${money(current)}</td>
+   <td class="${pl>=0?"green":"red"}">${money(pl)}</td>
+   <td><button onclick="closePosition(${i})">CLOSE</button></td>
+  </tr>`;
  }).join("");
+
+ const realized=state.history.reduce((sum,t)=>sum+t.pl,0);
+ document.getElementById("cash").textContent=money(state.cash);
+ document.getElementById("portfolio").textContent=money(state.cash+marketValue);
+ document.getElementById("totalpl").textContent=money(realized+unrealized);
+ document.getElementById("totalpl").className=realized+unrealized>=0?"green":"red";
+ document.getElementById("openCount").textContent=state.positions.length;
+
+ document.getElementById("positions").innerHTML=
+  rows||'<tr><td colspan="6">No open positions.</td></tr>';
+
+ document.getElementById("history").innerHTML=
+  state.history.slice().reverse().map(t=>`
+   <tr>
+    <td>${t.symbol}</td>
+    <td>${t.shares}</td>
+    <td>${money(t.entry)}</td>
+    <td>${money(t.exit)}</td>
+    <td class="${t.pl>=0?"green":"red"}">${money(t.pl)}</td>
+   </tr>`).join("")||'<tr><td colspan="5">No completed trades.</td></tr>';
+
+ save();
 }
 
-function trade(side){
- const s=document.getElementById("stock").value;
- const msg=document.getElementById("message");
- const amount=Number(document.getElementById("amount").value);
- const a=analyses[s];
+function buy(){
+ const symbol=document.getElementById("stock").value;
+ const a=calculate(symbol);
 
- if(!marketLoaded||!a){
-  msg.textContent="Trgovanje ni mogoče: podatki niso naloženi.";
+ if(!a){
+  alert("Market data is not available.");
   return;
  }
 
- if(!Number.isFinite(amount)||amount<=0){
-  msg.textContent="Vnesi veljaven znesek.";
+ const risk=Number(document.getElementById("risk").value);
+ const riskAmount=state.cash*risk;
+ const stop=a.price*0.98;
+ const shares=Math.floor(Math.min(
+  riskAmount/(a.price-stop),
+  state.cash/a.price
+ ));
+
+ if(shares<1){
+  alert("Not enough available cash for this simulated trade.");
   return;
  }
 
- if(side==="BUY"){
-  if(positions[s]){
-   msg.textContent="Za to delnico že obstaja odprta demo pozicija.";
-   return;
-  }
-
-  if(amount>balance){
-   msg.textContent="Premalo sredstev na demo računu.";
-   return;
-  }
-
-  const shares=amount/a.price;
-  const stop=a.price*0.98;
-  const target=a.price*1.04;
-  const risk=shares*(a.price-stop);
-
-  if(risk>balance*0.01+0.01){
-   msg.textContent="Znesek presega 1% demo računa tveganja. Zmanjšaj znesek.";
-   return;
-  }
-
-  balance-=amount;
-  positions[s]={shares,entry:a.price,stop,target,cost:amount};
-  msg.textContent="Demo BUY "+s+" izveden. Ocenjeno tveganje: $"+risk.toFixed(2)+".";
-
- }else{
-  if(!positions[s]){
-   msg.textContent="Te delnice nimaš v demo portfelju.";
-   return;
-  }
-
-  const p=positions[s];
-  const proceeds=p.shares*a.price;
-  balance+=proceeds;
-  const pl=proceeds-p.cost;
-  delete positions[s];
-  msg.textContent="Demo SELL "+s+" · rezultat: $"+pl.toFixed(2)+".";
+ const cost=shares*a.price;
+ if(cost>state.cash){
+  alert("Insufficient simulated cash.");
+  return;
  }
 
+ state.cash-=cost;
+ state.positions.push({
+  symbol:symbol,
+  shares:shares,
+  entry:a.price,
+  date:new Date().toISOString()
+ });
+
+ save();
+ render();
+ alert("Simulated BUY completed: "+shares+" shares of "+symbol);
+}
+
+function closePosition(index){
+ const p=state.positions[index];
+ if(!p)return;
+
+ const a=calculate(p.symbol);
+ const exit=a?a.price:p.entry;
+ const pl=(exit-p.entry)*p.shares;
+
+ state.cash+=exit*p.shares;
+ state.history.push({
+  symbol:p.symbol,
+  shares:p.shares,
+  entry:p.entry,
+  exit:exit,
+  pl:pl,
+  date:new Date().toISOString()
+ });
+
+ state.positions.splice(index,1);
+ save();
  render();
 }
 
-renderHistory();
-render();
-loadMarketPrices();
+function closeAll(){
+ if(!state.positions.length){
+  alert("There are no open positions.");
+  return;
+ }
+
+ if(!confirm("Close all simulated positions?"))return;
+
+ while(state.positions.length){
+  closePosition(0);
+ }
+}
+
+function updateScanner(){
+ const rows=SYMBOLS.map(symbol=>{
+  const a=calculate(symbol);
+  if(!a)return `<tr><td>${symbol}</td><td colspan="3">No data</td></tr>`;
+  const color=a.signal==="BUY"?"green":a.signal==="SELL"?"red":"yellow";
+  return `<tr>
+   <td>${symbol}</td>
+   <td>${money(a.price)}</td>
+   <td>${fmt(a.rsi)}</td>
+   <td class="${color}">${a.signal}</td>
+  </tr>`;
+ }).join("");
+
+ document.getElementById("scanner").innerHTML=rows;
+}
+
+async function loadData(){
+ const status=document.getElementById("dataStatus");
+ status.textContent="Loading data from Massive...";
+
+ try{
+  const response=await fetch("./prices.json?refresh="+Date.now());
+  if(!response.ok)throw new Error("HTTP "+response.status);
+
+  const data=await response.json();
+  if(!data.prices)throw new Error("Invalid prices.json format");
+
+  marketData=data.prices;
+
+  updateAnalysis();
+  updateScanner();
+  render();
+
+  document.getElementById("systemStatus").textContent=
+   "ALQYRON AI 4.0 · Connected to historical data · Paper trading active";
+
+ }catch(error){
+  status.textContent="Could not load prices.json: "+error.message;
+  document.getElementById("systemStatus").textContent=
+   "Data connection error. Check the GitHub Pages deployment.";
+ }
+}
+
+document.getElementById("analyze").addEventListener("click",updateAnalysis);
+document.getElementById("refresh").addEventListener("click",loadData);
+document.getElementById("stock").addEventListener("change",updateAnalysis);
+document.getElementById("risk").addEventListener("change",updateAnalysis);
+document.getElementById("buy").addEventListener("click",buy);
+document.getElementById("closeAll").addEventListener("click",closeAll);
+
+window.addEventListener("resize",()=>{
+ if(analysis)drawChart(analysis.values);
+});
+
+loadData();
 </script>
 </body>
 </html>
+
+
