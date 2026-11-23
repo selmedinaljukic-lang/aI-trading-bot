@@ -31,7 +31,6 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      
       - name: Fetch Massive historical stock prices
         env:
           MASSIVE_API_KEY: ${{ secrets.MASSIVE_API_KEY }}
@@ -105,60 +104,6 @@ jobs:
               json.dump(output, file, indent=2)
 
           print("Historical market data downloaded successfully.")
-          PY
-
-          import os, json, time, urllib.request, urllib.parse
-          from datetime import datetime, timezone
-
-          key = os.environ.get("MASSIVE_API_KEY")
-          if not key:
-              raise SystemExit("Missing MASSIVE_API_KEY secret")
-
-          tickers = ["AAPL", "MSFT", "NVDA", "TSLA"]
-          prices = {}
-
-          for i, ticker in enumerate(tickers):
-              if i:
-                  time.sleep(13)
-
-              params = urllib.parse.urlencode({
-                  "adjusted": "true",
-                  "apiKey": key
-              })
-
-              url = (
-                  f"https://api.massive.com/v2/aggs/"
-                  f"ticker/{ticker}/prev?{params}"
-              )
-
-              request = urllib.request.Request(url)
-              with urllib.request.urlopen(request, timeout=30) as response:
-                  data = json.loads(response.read())
-
-              if data.get("status") != "OK" or not data.get("results"):
-                  raise SystemExit(f"No market data for {ticker}")
-
-              bar = data["results"][0]
-
-              prices[ticker] = {
-                  "open": bar["o"],
-                  "high": bar["h"],
-                  "low": bar["l"],
-                  "close": bar["c"],
-                  "volume": bar["v"],
-                  "timestamp": bar["t"]
-              }
-
-          output = {
-              "source": "Massive",
-              "updated_at": datetime.now(timezone.utc).isoformat(),
-              "prices": prices
-          }
-
-          with open("prices.json", "w") as file:
-              json.dump(output, file, indent=2)
-
-          print("Market data downloaded successfully.")
           PY
 
       - name: Upload Pages artifact
