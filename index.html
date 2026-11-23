@@ -5,57 +5,81 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#080f1c">
-<title>AL Trading Bot 2.2</title>
+<title>AL Trading Bot 3.0</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;padding:18px;background:#080f1c;color:#edf4ff;font-family:Arial,sans-serif}
+body{margin:0;padding:16px;background:#080f1c;color:#edf4ff;font-family:Arial,sans-serif}
 header{padding:16px 0;border-bottom:1px solid #263750}
 h1{color:#35d39a;margin:0;font-size:28px}
 .sub,small,.muted{color:#94a6bd}
 .sub{font-size:12px;margin-top:7px}
-.card{background:#131f32;border:1px solid #293c56;border-radius:14px;padding:16px;margin-top:16px}
-h3{margin-top:0}
+.card{background:#131f32;border:1px solid #293c56;border-radius:14px;padding:15px;margin-top:15px}
+h3{margin:0 0 12px}
 .balance{font-size:32px;font-weight:bold;color:#35d39a;margin:10px 0}
 select,input{width:100%;padding:12px;margin:7px 0;background:#091323;color:white;border:1px solid #40516a;border-radius:8px}
-button{border:0;border-radius:8px;padding:12px 17px;font-weight:bold;margin:5px 3px;cursor:pointer}
+button{border:0;border-radius:8px;padding:12px 16px;font-weight:bold;margin:5px 3px;cursor:pointer}
 .buy{background:#35d39a;color:#07140f}
 .sell{background:#ff6878;color:#26080d}
 .refresh{background:#334c70;color:white}
-.signal{font-size:23px;font-weight:bold;margin:12px 0}
+.metric{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #293c56}
+.signal{font-size:22px;font-weight:bold;margin:12px 0}
 .green{color:#35d39a}
 .red{color:#ff6878}
 .yellow{color:#f4c76b}
-.metric{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #293c56}
+.stock-row{padding:12px 0;border-bottom:1px solid #293c56}
+.stock-head{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.pill{font-size:12px;font-weight:bold;padding:5px 8px;border-radius:20px;background:#263750}
+.bar{height:8px;background:#263750;border-radius:8px;overflow:hidden;margin:8px 0}
+.bar>span{display:block;height:100%;background:#35d39a}
+.small{font-size:12px;color:#94a6bd}
+.history-item{padding:8px 0;border-bottom:1px solid #293c56;font-size:13px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid .metric{display:block}
 </style>
 </head>
 <body>
 <header>
 <h1>AL TRADING BOT</h1>
-<div class="sub">VERSION 2.2 · DAY TRADING · STOCKS</div>
+<div class="sub">VERSION 3.0 · DAY TRADING · STOCKS</div>
 </header>
 
 <div class="card">
 <small>SIMULATED ACCOUNT BALANCE</small>
 <div class="balance" id="balance">$1,000.00</div>
-<small>Paper trading – simulated funds only</small>
+<small>Paper trading only · No real orders are sent</small>
 </div>
 
 <div class="card">
-<h3>Market Scanner</h3>
+<div class="stock-head">
+<h3>AUTO SCANNER</h3>
+<span class="pill" id="scanCount">0 / 4</span>
+</div>
+<p class="muted">Samodejna primerjava štirih delnic na podlagi zgodovinskih dnevnih podatkov.</p>
+<div id="scanner"><p class="muted">Nalagam podatke …</p></div>
+<button class="refresh" onclick="loadMarketPrices()">RESCAN ALL STOCKS</button>
+</div>
+
+<div class="card">
+<h3>Stock Analysis</h3>
 <select id="stock" onchange="analyze()">
 <option value="AAPL">Apple (AAPL)</option>
 <option value="MSFT">Microsoft (MSFT)</option>
 <option value="NVDA">NVIDIA (NVDA)</option>
 <option value="TSLA">Tesla (TSLA)</option>
 </select>
-<button class="refresh" onclick="analyze()">ANALYZE STOCK</button>
 <div class="metric"><span>Last daily close</span><b id="price">--</b></div>
 <div class="metric"><span>RSI (14)</span><b id="rsi">--</b></div>
 <div class="metric"><span>EMA 9</span><b id="ema9">--</b></div>
 <div class="metric"><span>EMA 21</span><b id="ema21">--</b></div>
 <div class="metric"><span>MACD (12,26)</span><b id="macd">--</b></div>
+<div class="metric"><span>Signal strength</span><b id="strength">--</b></div>
 <div class="signal yellow" id="signal">LOADING</div>
-<p class="muted" id="explanation">Loading historical market data…</p>
+<p class="muted" id="explanation">Nalagam analizo …</p>
+<div class="grid">
+<div class="metric"><span class="small">Suggested stop loss</span><b id="stopLoss">--</b></div>
+<div class="metric"><span class="small">Suggested take profit</span><b id="takeProfit">--</b></div>
+</div>
+<p class="small">Stop Loss 2% in Take Profit 4% sta informativna simulacijska nivoja, ne jamstvo rezultata.</p>
 <p class="muted" id="dataStatus">Historical daily data from Massive. Not real-time prices.</p>
 </div>
 
@@ -65,7 +89,7 @@ button{border:0;border-radius:8px;padding:12px 17px;font-weight:bold;margin:5px 
 <input id="amount" type="number" value="100" min="1" step="1">
 <button class="buy" onclick="trade('BUY')">BUY</button>
 <button class="sell" onclick="trade('SELL')">SELL</button>
-<p id="message" class="muted">No real orders are sent.</p>
+<p id="message" class="muted">Demo trading only. Trades are not sent to a broker.</p>
 </div>
 
 <div class="card">
@@ -75,32 +99,38 @@ button{border:0;border-radius:8px;padding:12px 17px;font-weight:bold;margin:5px 
 
 <div class="card">
 <h3>Risk Management</h3>
-<div class="metric"><span>Suggested maximum risk</span><b>1% per trade</b></div>
+<div class="metric"><span>Account risk limit per trade</span><b>1% ($10.00)</b></div>
+<div class="metric"><span>Stop loss reference</span><b>2% below entry</b></div>
+<div class="metric"><span>Take profit reference</span><b>4% above entry</b></div>
 <div class="metric"><span>Trading mode</span><b class="green">SIMULATION</b></div>
 <div class="metric"><span>Automatic execution</span><b class="red">DISABLED</b></div>
 </div>
 
 <div class="card">
+<h3>Signal History</h3>
+<div id="signalHistory">No signals recorded yet.</div>
+<button class="refresh" onclick="clearHistory()">CLEAR HISTORY</button>
+</div>
+
+<div class="card">
 <h3>AL System</h3>
-<p>Strategy: Day Trading</p>
+<p>Strategy: Day Trading signal screening</p>
 <p>Indicators: RSI + EMA + MACD</p>
-<p>Market data: 60 historical daily closes per stock</p>
-<p class="yellow">Not connected to real-time market data or Interactive Brokers.</p>
+<p>Coverage: AAPL · MSFT · NVDA · TSLA</p>
+<p class="yellow">Historical daily data only. Not connected to real-time market data or Interactive Brokers.</p>
 </div>
 
 <script>
 const tickers=["AAPL","MSFT","NVDA","TSLA"];
-const prices={AAPL:0,MSFT:0,NVDA:0,TSLA:0};
-const histories={};
-let balance=1000,positions={},currentSignal="HOLD",marketLoaded=false;
+const names={AAPL:"Apple",MSFT:"Microsoft",NVDA:"NVIDIA",TSLA:"Tesla"};
+const histories={},prices={},analyses={};
+let balance=1000,positions={},marketLoaded=false;
 
 function ema(values,period){
  if(values.length<period)return NaN;
  const k=2/(period+1);
  let value=values[0];
- for(let i=1;i<values.length;i++){
-  value=values[i]*k+value*(1-k);
- }
+ for(let i=1;i<values.length;i++)value=values[i]*k+value*(1-k);
  return value;
 }
 
@@ -113,60 +143,135 @@ function rsi(values,period=14){
   else losses-=change;
  }
  if(losses===0)return gains===0?50:100;
- const averageGain=gains/period;
- const averageLoss=losses/period;
- return 100-(100/(1+averageGain/averageLoss));
+ return 100-(100/(1+(gains/period)/(losses/period)));
 }
 
-function setSignal(signal,reason){
- const el=document.getElementById("signal");
- el.textContent=signal;
- el.className="signal "+(signal==="BUY"?"green":signal==="SELL"?"red":"yellow");
- document.getElementById("explanation").textContent=reason;
- currentSignal=signal;
+function calculate(symbol){
+ const c=histories[symbol];
+ if(!c||c.length<26)return null;
+ const price=c[c.length-1];
+ const e9=ema(c,9);
+ const e21=ema(c,21);
+ const macd=ema(c,12)-ema(c,26);
+ const r=rsi(c,14);
+
+ let score=0,why=[];
+ if(e9>e21){score+=30;why.push("EMA trend bullish")}
+ else{score-=30;why.push("EMA trend bearish")}
+
+ if(macd>0){score+=25;why.push("MACD positive")}
+ else{score-=25;why.push("MACD negative")}
+
+ if(r>=50&&r<=70){score+=25;why.push("RSI momentum positive")}
+ else if(r>70){score-=10;why.push("RSI overbought zone")}
+ else if(r>=35){score+=10;why.push("RSI neutral")}
+ else{score-=10;why.push("RSI weak")}
+
+ let signal="HOLD";
+ if(score>=55)signal="BUY";
+ else if(score<=-55)signal="SELL";
+
+ const strength=Math.min(100,Math.round(Math.abs(score)));
+
+ return {
+  symbol,price,e9,e21,macd,r,score,signal,strength,
+  stop:price*0.98,
+  target:price*1.04,
+  why:why.join(" · ")
+ };
 }
 
-function analyze(){
- const symbol=document.getElementById("stock").value;
- const closes=histories[symbol];
+function recordSignal(a){
+ let items=[];
+ try{items=JSON.parse(localStorage.getItem("al_signal_history")||"[]")}catch(e){}
+ const last=items[0];
+ if(last&&last.symbol===a.symbol&&last.signal===a.signal&&last.price===a.price)return;
 
- if(!marketLoaded||!closes||closes.length<26){
-  ["price","rsi","ema9","ema21","macd"].forEach(id=>{
-   document.getElementById(id).textContent="--";
-  });
-  setSignal("WAIT","Za to delnico še ni dovolj zgodovinskih podatkov.");
+ items.unshift({
+  symbol:a.symbol,
+  signal:a.signal,
+  strength:a.strength,
+  price:a.price,
+  time:new Date().toLocaleString()
+ });
+ items=items.slice(0,20);
+
+ try{localStorage.setItem("al_signal_history",JSON.stringify(items))}catch(e){}
+ renderHistory();
+}
+
+function renderHistory(){
+ let items=[];
+ try{items=JSON.parse(localStorage.getItem("al_signal_history")||"[]")}catch(e){}
+ const el=document.getElementById("signalHistory");
+
+ if(!items.length){
+  el.textContent="No signals recorded yet.";
   return;
  }
 
- const last=closes[closes.length-1];
- const e9=ema(closes,9);
- const e21=ema(closes,21);
- const macd=ema(closes,12)-ema(closes,26);
- const r=rsi(closes,14);
+ el.innerHTML=items.map(x=>
+  '<div class="history-item"><b>'+x.symbol+'</b> · <span class="'+(x.signal==="BUY"?"green":x.signal==="SELL"?"red":"yellow")+'">'+x.signal+'</span> · '+x.strength+'% · $'+Number(x.price).toFixed(2)+'<br><span class="small">'+x.time+'</span></div>'
+ ).join("");
+}
 
- prices[symbol]=last;
- document.getElementById("price").textContent="$"+last.toFixed(2);
- document.getElementById("rsi").textContent=r.toFixed(2);
- document.getElementById("ema9").textContent="$"+e9.toFixed(2);
- document.getElementById("ema21").textContent="$"+e21.toFixed(2);
- document.getElementById("macd").textContent=macd.toFixed(4);
+function clearHistory(){
+ try{localStorage.removeItem("al_signal_history")}catch(e){}
+ renderHistory();
+}
 
- let signal="HOLD";
- let reason="Zgodovinski kazalniki trenutno ne dajejo dovolj usklajenega signala.";
+function renderScanner(){
+ const el=document.getElementById("scanner");
+ const list=tickers.map(s=>analyses[s]).filter(Boolean).sort((a,b)=>b.strength-a.strength);
 
- if(r<35&&e9>e21&&macd>0){
-  signal="BUY";
-  reason="RSI je pod 35, EMA 9 je nad EMA 21 in MACD je pozitiven. To je simulacijski signal, ne zagotovilo dobička.";
- }else if(r>70&&e9<e21&&macd<0){
-  signal="SELL";
-  reason="RSI je nad 70, EMA 9 je pod EMA 21 in MACD je negativen. To je simulacijski signal, ne zagotovilo dobička.";
+ document.getElementById("scanCount").textContent=list.length+" / 4";
+
+ if(!list.length){
+  el.innerHTML='<p class="muted">No historical data available yet.</p>';
+  return;
  }
- setSignal(signal,reason);
+
+ el.innerHTML=list.map(a=>
+  '<div class="stock-row"><div class="stock-head"><b>'+names[a.symbol]+' ('+a.symbol+')</b><span class="pill '+(a.signal==="BUY"?"green":a.signal==="SELL"?"red":"yellow")+'">'+a.signal+'</span></div><div class="stock-head"><span>$'+a.price.toFixed(2)+'</span><b>'+a.strength+'% strength</b></div><div class="bar"><span style="width:'+a.strength+'%"></span></div><div class="small">RSI '+a.r.toFixed(1)+' · EMA9 '+a.e9.toFixed(2)+' · EMA21 '+a.e21.toFixed(2)+'</div></div>'
+ ).join("");
+}
+
+function analyze(){
+ const s=document.getElementById("stock").value;
+ const a=analyses[s];
+
+ if(!a){setSelectedWait();return}
+
+ document.getElementById("price").textContent="$"+a.price.toFixed(2);
+ document.getElementById("rsi").textContent=a.r.toFixed(2);
+ document.getElementById("ema9").textContent="$"+a.e9.toFixed(2);
+ document.getElementById("ema21").textContent="$"+a.e21.toFixed(2);
+ document.getElementById("macd").textContent=a.macd.toFixed(4);
+ document.getElementById("strength").textContent=a.strength+"%";
+ document.getElementById("stopLoss").textContent="$"+a.stop.toFixed(2);
+ document.getElementById("takeProfit").textContent="$"+a.target.toFixed(2);
+
+ const el=document.getElementById("signal");
+ el.textContent=a.signal;
+ el.className="signal "+(a.signal==="BUY"?"green":a.signal==="SELL"?"red":"yellow");
+
+ document.getElementById("explanation").textContent=a.why+". Signal je tehnična ocena zgodovinskih podatkov, ne napoved ali zagotovilo.";
+}
+
+function setSelectedWait(){
+ ["price","rsi","ema9","ema21","macd","strength","stopLoss","takeProfit"].forEach(id=>{
+  document.getElementById(id).textContent="--";
+ });
+ const el=document.getElementById("signal");
+ el.textContent="WAIT";
+ el.className="signal yellow";
+ document.getElementById("explanation").textContent="Za izbrano delnico ni dovolj zgodovinskih podatkov.";
 }
 
 async function loadMarketPrices(){
  const status=document.getElementById("dataStatus");
  status.textContent="Nalagam zgodovinske dnevne podatke …";
+ document.getElementById("scanner").innerHTML='<p class="muted">Scanning AAPL, MSFT, NVDA and TSLA …</p>';
 
  try{
   const response=await fetch("./prices.json?refresh="+Date.now(),{cache:"no-store"});
@@ -175,86 +280,122 @@ async function loadMarketPrices(){
   const data=await response.json();
   if(!data.prices)throw new Error("V datoteki ni podatkov o cenah.");
 
-  for(const symbol of tickers){
-   const stock=data.prices[symbol];
+  for(const s of tickers){
+   const stock=data.prices[s];
    if(!stock||!Array.isArray(stock.history))continue;
 
-   const closes=stock.history
-    .map(bar=>Number(bar.close))
-    .filter(value=>Number.isFinite(value)&&value>0);
+   const closes=stock.history.map(x=>Number(x.close)).filter(x=>Number.isFinite(x)&&x>0);
 
    if(closes.length>=26){
-    histories[symbol]=closes;
-    prices[symbol]=Number(stock.close)||closes[closes.length-1];
+    histories[s]=closes;
+    prices[s]=closes[closes.length-1];
+    analyses[s]=calculate(s);
+    if(analyses[s])recordSignal(analyses[s]);
    }
   }
 
-  if(!tickers.some(symbol=>histories[symbol])){
+  if(!Object.keys(analyses).length){
    throw new Error("Ni dovolj zgodovinskih podatkov za izračun.");
   }
 
   marketLoaded=true;
-  status.textContent="Vir: Massive · "+(data.updated_at||"datum posodobitve ni naveden")+" · Zgodovinski dnevni podatki, niso cene v realnem času.";
+  renderScanner();
   analyze();
+  render();
+
+  status.textContent="Vir: Massive · "+(data.updated_at||"datum posodobitve ni naveden")+" · zgodovinski dnevni podatki, niso cene v realnem času.";
 
  }catch(error){
-  console.error("Napaka pri nalaganju zgodovinskih cen:",error);
+  console.error(error);
   status.textContent="Napaka pri nalaganju podatkov: "+error.message;
-  setSignal("DATA ERROR","Kazalniki niso izračunani, ker zgodovinski podatki niso na voljo. Posodobi stran ali preveri objavo.");
+  document.getElementById("scanner").textContent="Podatkov ni bilo mogoče naložiti.";
+  const el=document.getElementById("signal");
+  el.textContent="DATA ERROR";
+  el.className="signal red";
+  document.getElementById("explanation").textContent="Preveri, ali je datoteka prices.json objavljena.";
  }
 }
 
 function render(){
  document.getElementById("balance").textContent="$"+balance.toFixed(2);
+ const el=document.getElementById("positions");
+ const keys=Object.keys(positions);
 
- let out="";
- for(const symbol of Object.keys(positions)){
-  const p=positions[symbol];
-  out+="<p><b>"+symbol+"</b> — "+p.shares.toFixed(4)+" shares · vložek $"+p.cost.toFixed(2)+"</p>";
+ if(!keys.length){
+  el.textContent="No open positions.";
+  return;
  }
- document.getElementById("positions").innerHTML=out||"No open positions.";
+
+ el.innerHTML=keys.map(s=>{
+  const p=positions[s];
+  const current=prices[s]||p.entry;
+  const pl=(current-p.entry)*p.shares;
+
+  return '<div class="stock-row"><b>'+s+'</b><div class="metric"><span>Shares</span><b>'+p.shares.toFixed(4)+'</b></div><div class="metric"><span>Entry</span><b>$'+p.entry.toFixed(2)+'</b></div><div class="metric"><span>Stop loss</span><b>$'+p.stop.toFixed(2)+'</b></div><div class="metric"><span>Take profit</span><b>$'+p.target.toFixed(2)+'</b></div><div class="metric"><span>Unrealized P/L</span><b class="'+(pl>=0?"green":"red")+'">$'+pl.toFixed(2)+'</b></div></div>';
+ }).join("");
 }
 
 function trade(side){
- const symbol=document.getElementById("stock").value;
- const amount=Number(document.getElementById("amount").value);
+ const s=document.getElementById("stock").value;
  const msg=document.getElementById("message");
+ const amount=Number(document.getElementById("amount").value);
+ const a=analyses[s];
 
- if(!marketLoaded||!prices[symbol]){
-  msg.textContent="Trgovanje ni mogoče: zgodovinski podatki niso naloženi.";
+ if(!marketLoaded||!a){
+  msg.textContent="Trgovanje ni mogoče: podatki niso naloženi.";
   return;
  }
+
  if(!Number.isFinite(amount)||amount<=0){
   msg.textContent="Vnesi veljaven znesek.";
   return;
  }
 
  if(side==="BUY"){
+  if(positions[s]){
+   msg.textContent="Za to delnico že obstaja odprta demo pozicija.";
+   return;
+  }
+
   if(amount>balance){
    msg.textContent="Premalo sredstev na demo računu.";
    return;
   }
-  const shares=amount/prices[symbol];
+
+  const shares=amount/a.price;
+  const stop=a.price*0.98;
+  const target=a.price*1.04;
+  const risk=shares*(a.price-stop);
+
+  if(risk>balance*0.01+0.01){
+   msg.textContent="Znesek presega 1% demo računa tveganja. Zmanjšaj znesek.";
+   return;
+  }
+
   balance-=amount;
-  if(!positions[symbol])positions[symbol]={shares:0,cost:0};
-  positions[symbol].shares+=shares;
-  positions[symbol].cost+=amount;
-  msg.textContent="Simulirani nakup "+symbol+" je izveden.";
+  positions[s]={shares,entry:a.price,stop,target,cost:amount};
+  msg.textContent="Demo BUY "+s+" izveden. Ocenjeno tveganje: $"+risk.toFixed(2)+".";
+
  }else{
-  if(!positions[symbol]){
+  if(!positions[s]){
    msg.textContent="Te delnice nimaš v demo portfelju.";
    return;
   }
-  const proceeds=positions[symbol].shares*prices[symbol];
+
+  const p=positions[s];
+  const proceeds=p.shares*a.price;
   balance+=proceeds;
-  delete positions[symbol];
-  msg.textContent="Simulirana prodaja "+symbol+" za $"+proceeds.toFixed(2)+".";
+  const pl=proceeds-p.cost;
+  delete positions[s];
+  msg.textContent="Demo SELL "+s+" · rezultat: $"+pl.toFixed(2)+".";
  }
+
  render();
 }
 
-loadMarketPrices();
+renderHistory();
 render();
+loadMarketPrices();
 </script>
 </body>
 </html>
