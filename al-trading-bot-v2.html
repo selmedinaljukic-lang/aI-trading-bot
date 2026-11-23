@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#080f1c">
+<title>AL Trading Bot 2.0</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:18px;background:#080f1c;color:#edf4ff;font-family:Arial,sans-serif}
+header{padding:16px 0;border-bottom:1px solid #263750}h1{color:#35d39a;margin:0;font-size:28px}
+.sub,small,.muted{color:#94a6bd}.sub{font-size:12px;margin-top:7px}
+.card{background:#131f32;border:1px solid #293c56;border-radius:14px;padding:16px;margin-top:16px}
+h3{margin-top:0}.balance{font-size:32px;font-weight:bold;color:#35d39a;margin:10px 0}
+select,input{width:100%;padding:12px;margin:7px 0;background:#091323;color:white;border:1px solid #40516a;border-radius:8px}
+button{border:0;border-radius:8px;padding:12px 17px;font-weight:bold;margin:5px 3px;cursor:pointer}
+.buy{background:#35d39a;color:#07140f}.sell{background:#ff6878;color:#26080d}.refresh{background:#334c70;color:white}
+.signal{font-size:23px;font-weight:bold;margin:12px 0}.green{color:#35d39a}.red{color:#ff6878}.yellow{color:#f4c76b}
+.metric{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #293c56}
+</style>
+</head>
+<body>
+<header><h1>AL TRADING BOT</h1><div class="sub">VERSION 2.0 · DAY TRADING · STOCKS</div></header>
+<div class="card"><small>SIMULATED ACCOUNT BALANCE</small><div class="balance" id="balance">$1,000.00</div><small>Paper trading – simulated funds only</small></div>
+<div class="card">
+<h3>Market Scanner</h3>
+<select id="stock" onchange="analyze()">
+<option value="AAPL">Apple (AAPL)</option><option value="MSFT">Microsoft (MSFT)</option>
+<option value="NVDA">NVIDIA (NVDA)</option><option value="TSLA">Tesla (TSLA)</option>
+</select>
+<button class="refresh" onclick="analyze()">ANALYZE STOCK</button>
+<div class="metric"><span>Demo price</span><b id="price">--</b></div>
+<div class="metric"><span>RSI (14)</span><b id="rsi">--</b></div>
+<div class="metric"><span>EMA 9</span><b id="ema9">--</b></div>
+<div class="metric"><span>EMA 21</span><b id="ema21">--</b></div>
+<div class="metric"><span>MACD</span><b id="macd">--</b></div>
+<div class="signal yellow" id="signal">HOLD</div>
+<p class="muted" id="explanation">Select a stock to analyze.</p>
+<p class="muted">Indicators are calculated from illustrative sample prices, not live market data.</p>
+</div>
+<div class="card">
+<h3>Simulated Trading</h3><label for="amount">Amount (USD)</label>
+<input id="amount" type="number" value="100" min="1" step="1">
+<button class="buy" onclick="trade('BUY')">BUY</button><button class="sell" onclick="trade('SELL')">SELL</button>
+<p id="message" class="muted">No real orders are sent.</p>
+</div>
+<div class="card"><h3>Open Positions</h3><div id="positions">No open positions.</div></div>
+<div class="card"><h3>Risk Management</h3>
+<div class="metric"><span>Suggested maximum risk</span><b>1% per trade</b></div>
+<div class="metric"><span>Trading mode</span><b class="green">SIMULATION</b></div>
+<div class="metric"><span>Automatic execution</span><b class="red">DISABLED</b></div>
+</div>
+<div class="card"><h3>AL System</h3><p>Strategy: Day Trading</p><p>Indicators: RSI + EMA + MACD</p><p>Market data: Illustrative sample only</p><p class="yellow">Not connected to live market data or Interactive Brokers.</p></div>
+<script>
+const sample={
+ AAPL:[221,222,220,223,224,222,225,226,224,227,228,226,229,230,228,231,232,230,233,234,232,235,236,234,237,238,236,239,240,238],
+ MSFT:[500,502,499,503,505,502,506,508,505,509,511,508,512,514,511,515,517,514,518,520,517,521,523,520,524,526,523,527,529,526],
+ NVDA:[175,176,174,177,178,176,179,180,178,181,182,180,183,184,182,185,186,184,187,188,186,189,190,188,191,192,190,193,194,192],
+ TSLA:[345,347,343,348,350,346,351,353,349,354,356,352,357,359,355,360,362,358,363,365,361,366,368,364,369,371,367,372,374,370]
+};
+const prices={AAPL:225,MSFT:510,NVDA:180,TSLA:350};
+let balance=1000,positions={},currentSignal="HOLD";
+function ema(values,period){let k=2/(period+1),v=values[0];for(let i=1;i<values.length;i++)v=values[i]*k+v*(1-k);return v}
+function rsi(values){let gains=0,losses=0;for(let i=values.length-14;i<values.length;i++){let d=values[i]-values[i-1];if(d>0)gains+=d;else losses-=d}if(losses===0)return 100;let rs=(gains/14)/(losses/14);return 100-100/(1+rs)}
+function analyze(){
+ const s=document.getElementById("stock").value,v=sample[s],e9=ema(v,9),e21=ema(v,21),r=rsi(v);
+ const macd=ema(v,12)-ema(v,26);
+ let signal="HOLD",why="Kazalniki trenutno ne dajejo dovolj usklajenega signala.";
+ if(r<35&&e9>e21&&macd>0){signal="BUY";why="RSI je nizek, EMA 9 je nad EMA 21 in MACD pozitiven."}
+ else if(r>70&&e9<e21&&macd<0){signal="SELL";why="RSI je visok, EMA 9 je pod EMA 21 in MACD negativen."}
+ document.getElementById("price").textContent="$"+prices[s].toFixed(2);
+ document.getElementById("rsi").textContent=r.toFixed(2);
+ document.getElementById("ema9").textContent=e9.toFixed(2);
+ document.getElementById("ema21").textContent=e21.toFixed(2);
+ document.getElementById("macd").textContent=macd.toFixed(3);
+ const el=document.getElementById("signal");el.textContent=signal;el.className="signal "+(signal==="BUY"?"green":signal==="SELL"?"red":"yellow");
+ document.getElementById("explanation").textContent=why;currentSignal=signal;
+}
+function render(){
+ document.getElementById("balance").textContent="$"+balance.toFixed(2);
+ let out="";
+ for(const [s,p] of Object.entries(positions))out+=`<p><b>${s}</b> — ${p.shares.toFixed(4)} shares · vložek $${p.cost.toFixed(2)}</p>`;
+ document.getElementById("positions").innerHTML=out||"No open positions.";
+}
+function trade(side){
+ const s=document.getElementById("stock").value,amount=Number(document.getElementById("amount").value),msg=document.getElementById("message");
+ if(!Number.isFinite(amount)||amount<=0){msg.textContent="Vnesi veljaven znesek.";return}
+ if(side==="BUY"){
+  if(amount>balance){msg.textContent="Premalo sredstev na demo računu.";return}
+  const shares=amount/prices[s];balance-=amount;
+  if(!positions[s])positions[s]={shares:0,cost:0};
+  positions[s].shares+=shares;positions[s].cost+=amount;
+  msg.textContent="Simulirani nakup "+s+" je izveden.";
+ }else{
+  if(!positions[s]){msg.textContent="Te delnice nimaš v demo portfelju.";return}
+  const proceeds=positions[s].shares*prices[s];balance+=proceeds;delete positions[s];
+  msg.textContent="Simulirana prodaja "+s+" za $"+proceeds.toFixed(2)+".";
+ }
+ render();
+}
+analyze();render();
+</script>
+</body>
+</html>
