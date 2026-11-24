@@ -21,6 +21,8 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -37,7 +39,11 @@ jobs:
           MASSIVE_API_KEY: ${{ secrets.MASSIVE_API_KEY }}
         run: |
           python3 <<'PY'
-          import os, json, time, urllib.request, urllib.parse
+          import os
+          import json
+          import time
+          import urllib.request
+          import urllib.parse
           from datetime import datetime, timezone, timedelta
 
           key = os.environ.get("MASSIVE_API_KEY")
@@ -157,6 +163,9 @@ jobs:
         uses: actions/upload-pages-artifact@v4
         with:
           path: .
+
+      - name: Wait for artifact availability
+        run: sleep 15
 
       - name: Deploy to GitHub Pages
         id: deployment
