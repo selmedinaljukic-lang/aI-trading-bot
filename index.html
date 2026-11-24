@@ -5,7 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#080f1c">
-<title>ALQYRON AI 6.3 FINAL</title>
+<title>ALQYRON AI 6.4</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;padding:16px;background:#080f1c;color:#edf4ff;font-family:Arial,sans-serif}
@@ -43,7 +43,6 @@ th{color:#91a5c1;font-weight:normal}
 .notice{font-size:11px;color:#91a5c1;line-height:1.6;margin-top:12px}
 .pill{display:inline-block;border:1px solid #34516f;border-radius:20px;padding:5px 9px;color:#a9bdd8;font-size:11px;margin:0 5px 5px 0}
 .rank{font-weight:bold;color:#f6c65b}
-.restored{display:inline-block;color:#f6c65b;border:1px solid #806b35;border-radius:5px;padding:2px 5px;font-size:9px;margin-left:4px}
 @media(min-width:700px){.grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 </style>
 </head>
@@ -51,7 +50,7 @@ th{color:#91a5c1;font-weight:normal}
 <main>
 <header>
 <h1>ALQYRON AI</h1>
-<div class="sub">VERSION 6.3 FINAL · STOCKS + FOREX · AUTO RISK PROTECTION</div>
+<div class="sub">VERSION 6.4 · STOCKS + FOREX · AUTO RISK PROTECTION</div>
 <div style="margin-top:10px">
 <span class="pill">DEMO MODE</span>
 <span class="pill">9 INSTRUMENTS</span>
@@ -166,12 +165,11 @@ th{color:#91a5c1;font-weight:normal}
 <thead><tr><th>Instrument</th><th>Side</th><th>Qty</th><th>Entry</th><th>Exit</th><th>P/L</th><th>Reason</th></tr></thead>
 <tbody id="history"><tr><td colspan="7">No completed trades.</td></tr></tbody>
 </table></div>
-<div class="notice">RESTORED entries were manually reconstructed from earlier screenshots. They are not original broker records.</div>
 </section>
 
 <section class="card">
 <h2>System status</h2>
-<div class="status" id="systemStatus">ALQYRON AI 6.3 · Initializing...</div>
+<div class="status" id="systemStatus">ALQYRON AI 6.4 · Initializing...</div>
 <div class="notice">Rule-based technical analysis using RSI, EMA and MACD. Automatic demo stop-loss/take-profit checks use historical daily closing prices only. No broker is connected. Demo only.</div>
 </section>
 </main>
@@ -204,6 +202,14 @@ function loadState(){
     takeProfit:Number(p.takeProfit)||Number(p.entry)*(p.side==="BUY"?1.04:0.96)
    }));
    s.history=s.history.map(t=>({...t,id:t.id||makeId()}));
+
+   // Remove reconstructed/fake history entries, preserving genuine trades and open positions.
+   s.history=s.history.filter(t=>
+    t.id!=="alqyron-recovered-msft-sell-1"&&
+    !t.restored&&
+    t.exitReason!=="RESTORED"
+   );
+
    return s;
   }
  }catch(e){}
@@ -217,27 +223,6 @@ function saveState(){
   console.error("Could not save demo state",e);
  }
 }
-
-function restoreRecoveredHistory(s){
- if(!Array.isArray(s.history))s.history=[];
- const recovered={
-  id:"alqyron-recovered-msft-sell-1",
-  market:"stocks",
-  symbol:"MSFT",
-  side:"SELL",
-  quantity:10,
-  entry:492.5,
-  exit:492.5,
-  pl:0,
-  restored:true,
-  exitReason:"RESTORED"
- };
- if(!s.history.some(x=>x.id===recovered.id)){
-  s.history.push(recovered);
- }
-}
-restoreRecoveredHistory(state);
-saveState();
 
 function money(n){
  return Number.isFinite(n)?"$"+n.toFixed(2):"--";
@@ -475,7 +460,7 @@ function renderPortfolio(){
  document.getElementById("history").innerHTML=
   state.history.slice().reverse().map(t=>
    `<tr>
-    <td>${label(t.market,t.symbol)}${t.restored?'<span class="restored">RESTORED</span>':''}</td>
+    <td>${label(t.market,t.symbol)}</td>
     <td>${t.side}</td>
     <td>${t.quantity}</td>
     <td>${fmt(t.entry)}</td>
@@ -652,7 +637,7 @@ async function loadData(){
   renderPortfolio();
 
   document.getElementById("systemStatus").textContent=
-   "ALQYRON AI 6.3 · Stocks: "+
+   "ALQYRON AI 6.4 · Stocks: "+
    Object.keys(feed.stocks).length+"/4 · Forex: "+
    Object.keys(feed.forex).length+"/5 · Historical daily data · Demo mode";
 
