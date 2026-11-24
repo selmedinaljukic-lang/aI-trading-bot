@@ -5,7 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#080f1c">
-<title>ALQYRON AI 6.4</title>
+<title>ALQYRON AI 6.5</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;padding:16px;background:#080f1c;color:#edf4ff;font-family:Arial,sans-serif}
@@ -22,10 +22,9 @@ h2{font-size:17px;margin:0 0 14px}
 .metric strong{font-size:19px;overflow-wrap:anywhere}
 button,select{padding:12px;border-radius:9px;border:1px solid #344b68;background:#172944;color:white;font-size:13px;max-width:100%}
 button{cursor:pointer}
-button:disabled{opacity:.55;cursor:not-allowed}
+button:disabled{opacity:.55}
 .primary{background:#1769d2}.buy{background:#087d59}.sell{background:#9e3046}
 .controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.controls>div{min-width:0}
 label{display:block;font-size:12px;margin-bottom:7px;color:#91a5c1}
 select{width:100%}
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
@@ -42,7 +41,6 @@ td,th{text-align:left;padding:10px 7px;border-bottom:1px solid #293b54}
 th{color:#91a5c1;font-weight:normal}
 .notice{font-size:11px;color:#91a5c1;line-height:1.6;margin-top:12px}
 .pill{display:inline-block;border:1px solid #34516f;border-radius:20px;padding:5px 9px;color:#a9bdd8;font-size:11px;margin:0 5px 5px 0}
-.rank{font-weight:bold;color:#f6c65b}
 @media(min-width:700px){.grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 </style>
 </head>
@@ -50,11 +48,11 @@ th{color:#91a5c1;font-weight:normal}
 <main>
 <header>
 <h1>ALQYRON AI</h1>
-<div class="sub">VERSION 6.4 · STOCKS + FOREX · AUTO RISK PROTECTION</div>
+<div class="sub">VERSION 6.5 · STOCKS + FOREX · DEMO TRADING</div>
 <div style="margin-top:10px">
 <span class="pill">DEMO MODE</span>
 <span class="pill">9 INSTRUMENTS</span>
-<span class="pill">AUTO RISK PROTECTION</span>
+<span class="pill">DATA RECOVERY</span>
 </div>
 </header>
 
@@ -66,7 +64,7 @@ th{color:#91a5c1;font-weight:normal}
 <div class="metric"><small>Total P/L</small><strong id="totalpl">$0.00</strong></div>
 <div class="metric"><small>Open positions</small><strong id="openCount">0</strong></div>
 </div>
-<div class="notice">Virtual capital: $10,000. Demo history is stored locally on this device.</div>
+<div class="notice">Virtual capital: $10,000. Demo data is stored locally on this device.</div>
 </section>
 
 <section class="card">
@@ -88,7 +86,7 @@ th{color:#91a5c1;font-weight:normal}
 <tbody id="scanner"><tr><td colspan="7">Waiting for data...</td></tr></tbody>
 </table>
 </div>
-<div class="notice">Signal strength is a technical score, not a probability of profit.</div>
+<div class="notice">Technical signals are not guarantees of profit.</div>
 </section>
 
 <section class="card">
@@ -133,7 +131,7 @@ th{color:#91a5c1;font-weight:normal}
 <h2>Price chart</h2>
 <div class="muted" id="chartTitle" style="font-size:12px;margin-bottom:10px">Historical daily prices</div>
 <canvas id="chart"></canvas>
-<div class="notice">Historical daily data, not live intraday prices.</div>
+<div class="notice">Historical daily prices, not live intraday data.</div>
 </section>
 
 <section class="card">
@@ -144,11 +142,9 @@ th{color:#91a5c1;font-weight:normal}
 <div class="metric"><small>Risk budget</small><strong id="riskAmount">--</strong></div>
 <div class="metric"><small>Suggested quantity</small><strong id="quantity">--</strong></div>
 </div>
-<div class="actions">
-<button class="sell" id="closeAll">CLOSE ALL POSITIONS</button>
-</div>
-<div class="notice">Automatic protection checks the latest available daily close when data is loaded or refreshed. It is not live monitoring and does not guarantee execution prices.</div>
-<div class="status" id="protectionStatus" style="margin-top:10px">Automatic demo protection is enabled.</div>
+<div class="actions"><button class="sell" id="closeAll">CLOSE ALL POSITIONS</button></div>
+<div class="notice">Protection checks the latest daily close when data is refreshed. It is not live monitoring.</div>
+<div class="status" id="protectionStatus" style="margin-top:10px">Demo protection enabled.</div>
 </section>
 
 <section class="card">
@@ -169,18 +165,20 @@ th{color:#91a5c1;font-weight:normal}
 
 <section class="card">
 <h2>System status</h2>
-<div class="status" id="systemStatus">ALQYRON AI 6.4 · Initializing...</div>
-<div class="notice">Rule-based technical analysis using RSI, EMA and MACD. Automatic demo stop-loss/take-profit checks use historical daily closing prices only. No broker is connected. Demo only.</div>
+<div class="status" id="systemStatus">ALQYRON AI 6.5 · Initializing...</div>
+<div class="notice" id="recoveryStatus">Checking saved demo data...</div>
+<div class="notice">No broker is connected. Demo trading only.</div>
 </section>
 </main>
-
 <script>
+
 "use strict";
 
 const STOCKS=["AAPL","MSFT","NVDA","TSLA"];
 const FX=["EUR/USD","GBP/USD","USD/JPY","AUD/USD","USD/CHF"];
 const INITIAL_CASH=10000;
 const STORAGE_KEY="alqyron_ai_6_demo";
+const BACKUP_KEY="alqyron_ai_65_backup";
 
 let feed={stocks:{},forex:{}};
 let currentAnalysis=null;
@@ -188,39 +186,57 @@ let state=loadState();
 let tradeBusy=false;
 
 function makeId(){
- return "trade-"+Date.now()+"-"+Math.random().toString(36).slice(2,10);
+ return "trade-"+Date.now()+"-"+Math.random().toString(36).slice(2,9);
+}
+
+function validState(s){
+ return s&&typeof s.cash==="number"&&
+ Array.isArray(s.positions)&&Array.isArray(s.history);
 }
 
 function loadState(){
- try{
-  const s=JSON.parse(localStorage.getItem(STORAGE_KEY));
-  if(s&&typeof s.cash==="number"&&Array.isArray(s.positions)&&Array.isArray(s.history)){
-   s.positions=s.positions.map(p=>({
-    ...p,
-    id:p.id||makeId(),
-    stopLoss:Number(p.stopLoss)||Number(p.entry)*(p.side==="BUY"?0.98:1.02),
-    takeProfit:Number(p.takeProfit)||Number(p.entry)*(p.side==="BUY"?1.04:0.96)
-   }));
-   s.history=s.history.map(t=>({...t,id:t.id||makeId()}));
+ const candidates=[STORAGE_KEY,BACKUP_KEY,
+  "alqyron_ai_5_demo","alqyron_ai_6_3",
+  "alqyron_ai_6_4","alqyron_demo"];
 
-   // Remove reconstructed/fake history entries, preserving genuine trades and open positions.
-   s.history=s.history.filter(t=>
-    t.id!=="alqyron-recovered-msft-sell-1"&&
-    !t.restored&&
-    t.exitReason!=="RESTORED"
+ for(const key of candidates){
+  try{
+   const raw=localStorage.getItem(key);
+   if(!raw)continue;
+   const s=JSON.parse(raw);
+   if(!validState(s))continue;
+
+   s.positions=s.positions.map(p=>({
+    ...p,id:p.id||makeId(),
+    quantity:Number(p.quantity),
+    entry:Number(p.entry),
+    stopLoss:Number(p.stopLoss)||Number(p.entry)*(p.side==="BUY"?.98:1.02),
+    takeProfit:Number(p.takeProfit)||Number(p.entry)*(p.side==="BUY"?1.04:.96)
+   })).filter(p=>
+    Number.isFinite(p.quantity)&&p.quantity>0&&
+    Number.isFinite(p.entry)&&p.entry>0
    );
 
+   s.history=s.history.map(t=>({...t,id:t.id||makeId()}));
+   localStorage.setItem(BACKUP_KEY,JSON.stringify(s));
+   document.addEventListener("DOMContentLoaded",()=>{
+    const el=document.getElementById("recoveryStatus");
+    if(el)el.textContent="Saved demo data loaded from "+key+".";
+   });
    return s;
-  }
- }catch(e){}
+  }catch(e){}
+ }
+
  return {cash:INITIAL_CASH,positions:[],history:[]};
 }
 
 function saveState(){
  try{
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
+  const raw=JSON.stringify(state);
+  localStorage.setItem(STORAGE_KEY,raw);
+  localStorage.setItem(BACKUP_KEY,raw);
  }catch(e){
-  console.error("Could not save demo state",e);
+  console.error("Save failed",e);
  }
 }
 
@@ -245,8 +261,9 @@ function valuesFor(m,s){
  if(!item)return [];
  const raw=item.history||item.results||item.prices||[];
  if(!Array.isArray(raw))return [];
- return raw.map(v=>typeof v==="number"?v:Number(v.close??v.c??v.price??v.value))
- .filter(v=>Number.isFinite(v)&&v>0);
+ return raw.map(v=>typeof v==="number"?v:
+  Number(v.close??v.c??v.price??v.value))
+  .filter(v=>Number.isFinite(v)&&v>0);
 }
 
 function ema(v,p){
@@ -265,7 +282,7 @@ function rsi(v,p=14){
   if(d>0)g+=d;else l-=d;
  }
  if(l===0)return 100;
- return 100-100/(1+(g/p)/(l/p));
+ return 100-100/(1+g/l);
 }
 
 function analyze(m,s){
@@ -275,13 +292,11 @@ function analyze(m,s){
  const e9=ema(v,9),e21=ema(v,21);
  const macd=ema(v,12)-ema(v,26);
  const r=rsi(v);
- let score=50+(price>e9?10:-10)+(e9>e21?15:-15)+(macd>0?15:-15)+(r>50?10:-10);
+ let score=50+(price>e9?10:-10)+(e9>e21?15:-15)+
+  (macd>0?15:-15)+(r>50?10:-10);
  score=Math.max(0,Math.min(100,score));
- return {
-  market:m,symbol:s,price,e9,e21,macd,rsi:r,score,
-  signal:score>=70?"BUY":score<=30?"SELL":"HOLD",
-  values:v
- };
+ return {market:m,symbol:s,price,e9,e21,macd,rsi:r,
+  score,signal:score>=70?"BUY":score<=30?"SELL":"HOLD",values:v};
 }
 
 function strength(a){
@@ -341,7 +356,6 @@ function renderAnalysis(){
   document.getElementById("dataStatus").textContent="No usable data for "+s;
   return;
  }
-
  document.getElementById("price").textContent=fmt(a.price);
  document.getElementById("rsi").textContent=fmt(a.rsi);
  document.getElementById("ema9").textContent=fmt(a.e9);
@@ -351,7 +365,6 @@ function renderAnalysis(){
  const sig=document.getElementById("signal");
  sig.textContent=a.signal;
  sig.className="signal "+(a.signal==="BUY"?"green":a.signal==="SELL"?"red":"yellow");
-
  document.getElementById("signalText").textContent=
   a.signal==="BUY"?"Indicators currently lean positive.":
   a.signal==="SELL"?"Indicators currently lean negative.":
@@ -366,13 +379,12 @@ function renderAnalysis(){
  const risk=Number(document.getElementById("risk").value);
  const budget=accountEquity()*risk;
  const distance=a.price*.02;
- const qty=Math.max(0,Math.floor(Math.min(budget/distance,state.cash/a.price,accountEquity()*.25/a.price)));
+ const qty=Math.max(0,Math.floor(Math.min(
+  budget/distance,state.cash/a.price,accountEquity()*.25/a.price
+ )));
  const side=document.getElementById("direction").value;
- const stop=side==="BUY"?a.price*.98:a.price*1.02;
- const target=side==="BUY"?a.price*1.04:a.price*.96;
-
- document.getElementById("stop").textContent=fmt(stop);
- document.getElementById("target").textContent=fmt(target);
+ document.getElementById("stop").textContent=fmt(a.price*(side==="BUY"?.98:1.02));
+ document.getElementById("target").textContent=fmt(a.price*(side==="BUY"?1.04:.96));
  document.getElementById("riskAmount").textContent=money(budget);
  document.getElementById("quantity").textContent=qty;
  document.getElementById("dataStatus").textContent=
@@ -380,45 +392,29 @@ function renderAnalysis(){
 }
 
 function renderScanner(){
- const all=[
-  ...STOCKS.map(s=>["stocks",s]),
-  ...FX.map(s=>["forex",s])
- ];
+ const all=[...STOCKS.map(s=>["stocks",s]),...FX.map(s=>["forex",s])];
  const rows=all.map(([m,s])=>{
   const a=analyze(m,s);
   return {m,s,a,str:a?strength(a):-1};
  }).sort((a,b)=>b.str-a.str);
-
  const valid=rows.filter(x=>x.a);
  const buys=valid.filter(x=>x.a.signal==="BUY").length;
  const sells=valid.filter(x=>x.a.signal==="SELL").length;
-
  document.getElementById("scanCount").textContent=valid.length+"/9";
  document.getElementById("buyCount").textContent=buys;
  document.getElementById("sellCount").textContent=sells;
-
  const best=valid[0];
  document.getElementById("topSignal").textContent=best?best.s+" "+best.a.signal:"--";
  document.getElementById("scannerSummary").textContent=valid.length?
   "Scan completed. Strongest technical signal: "+best.s+" · "+
-  best.a.signal+" · "+best.str+"/100. "+
-  (9-valid.length)+" instruments without sufficient data.":
-  "No instruments have enough data.";
-
+  best.a.signal+" · "+best.str+"/100. "+(9-valid.length)+
+  " instruments without sufficient data.":"No instruments have enough data.";
  document.getElementById("scanner").innerHTML=rows.map((x,i)=>{
-  if(!x.a){
-   return `<tr><td>—</td><td>${x.m}</td><td>${x.s}</td><td colspan="4">Insufficient data</td></tr>`;
-  }
+  if(!x.a)return `<tr><td>—</td><td>${x.m}</td><td>${x.s}</td><td colspan="4">Insufficient data</td></tr>`;
   const cls=x.a.signal==="BUY"?"green":x.a.signal==="SELL"?"red":"yellow";
-  return `<tr>
-   <td class="rank">${i+1}</td>
-   <td>${x.m==="forex"?"Forex":"Stocks"}</td>
-   <td>${x.s}</td>
-   <td>${fmt(x.a.price)}</td>
-   <td>${fmt(x.a.rsi)}</td>
-   <td class="${cls}">${x.a.signal}</td>
-   <td>${x.str}/100</td>
-  </tr>`;
+  return `<tr><td>${i+1}</td><td>${x.m}</td><td>${x.s}</td>
+   <td>${fmt(x.a.price)}</td><td>${fmt(x.a.rsi)}</td>
+   <td class="${cls}">${x.a.signal}</td><td>${x.str}/100</td></tr>`;
  }).join("");
 }
 
@@ -435,69 +431,43 @@ function renderPortfolio(){
   reserved+=p.quantity*p.entry;
   unrealized+=pl;
   return `<tr>
-   <td>${label(p.market,p.symbol)}</td>
-   <td>${p.side}</td>
-   <td>${p.quantity}</td>
-   <td>${fmt(p.entry)}</td>
-   <td>${fmt(p.stopLoss)}</td>
-   <td>${fmt(p.takeProfit)}</td>
-   <td>${fmt(px)}</td>
-   <td class="${pl>=0?"green":"red"}">${money(pl)}</td>
+   <td>${label(p.market,p.symbol)}</td><td>${p.side}</td>
+   <td>${p.quantity}</td><td>${fmt(p.entry)}</td>
+   <td>${fmt(p.stopLoss)}</td><td>${fmt(p.takeProfit)}</td>
+   <td>${fmt(px)}</td><td class="${pl>=0?"green":"red"}">${money(pl)}</td>
    <td><button data-close="${i}">CLOSE</button></td>
   </tr>`;
  }).join("");
 
  const realized=state.history.reduce((sum,t)=>sum+(Number(t.pl)||0),0);
  const totalPL=realized+unrealized;
-
  document.getElementById("cash").textContent=money(state.cash);
  document.getElementById("portfolio").textContent=money(state.cash+reserved+unrealized);
  document.getElementById("totalpl").textContent=money(totalPL);
  document.getElementById("totalpl").className=totalPL>=0?"green":"red";
  document.getElementById("openCount").textContent=state.positions.length;
- document.getElementById("positions").innerHTML=rows||'<tr><td colspan="9">No open positions.</td></tr>';
+ document.getElementById("positions").innerHTML=rows||
+  '<tr><td colspan="9">No open positions.</td></tr>';
 
  document.getElementById("history").innerHTML=
-  state.history.slice().reverse().map(t=>
-   `<tr>
-    <td>${label(t.market,t.symbol)}</td>
-    <td>${t.side}</td>
-    <td>${t.quantity}</td>
-    <td>${fmt(t.entry)}</td>
-    <td>${fmt(t.exit)}</td>
-    <td class="${t.pl>=0?"green":"red"}">${money(t.pl)}</td>
-    <td>${t.exitReason||"MANUAL"}</td>
-   </tr>`
-  ).join("")||'<tr><td colspan="7">No completed trades.</td></tr>';
-
+  state.history.slice().reverse().map(t=>`<tr>
+   <td>${label(t.market,t.symbol)}</td><td>${t.side}</td>
+   <td>${t.quantity}</td><td>${fmt(t.entry)}</td>
+   <td>${fmt(t.exit)}</td><td class="${t.pl>=0?"green":"red"}">${money(t.pl)}</td>
+   <td>${t.exitReason||"MANUAL"}</td></tr>`).join("")||
+  '<tr><td colspan="7">No completed trades.</td></tr>';
  saveState();
 }
 
 function closePosition(i,reason="MANUAL"){
  const p=state.positions[i];
  if(!p)return false;
-
  const exit=currentPrice(p);
  if(!Number.isFinite(exit)||exit<=0)return false;
-
- if(state.history.some(t=>t.id===p.id)){
-  state.positions.splice(i,1);
-  saveState();
-  return false;
- }
-
  const pl=(p.side==="BUY"?exit-p.entry:p.entry-exit)*p.quantity;
- const reserved=p.quantity*p.entry;
- state.cash+=reserved+pl;
-
- state.history.push({
-  ...p,
-  exit,
-  pl,
-  exitReason:reason,
-  closed:new Date().toISOString()
- });
-
+ state.cash+=p.quantity*p.entry+pl;
+ state.history.push({...p,exit,pl,exitReason:reason,
+  closed:new Date().toISOString()});
  state.positions.splice(i,1);
  saveState();
  return true;
@@ -506,24 +476,16 @@ function closePosition(i,reason="MANUAL"){
 function checkAutoProtection(){
  let closed=0;
  for(let i=state.positions.length-1;i>=0;i--){
-  const p=state.positions[i];
-  const price=currentPrice(p);
+  const p=state.positions[i],price=currentPrice(p);
   const stopHit=p.side==="BUY"?price<=p.stopLoss:price>=p.stopLoss;
   const targetHit=p.side==="BUY"?price>=p.takeProfit:price<=p.takeProfit;
-
   if(stopHit||targetHit){
-   const reason=stopHit?"AUTO STOP-LOSS":"AUTO TAKE-PROFIT";
-   if(closePosition(i,reason))closed++;
+   if(closePosition(i,stopHit?"AUTO STOP-LOSS":"AUTO TAKE-PROFIT"))closed++;
   }
  }
-
- const status=document.getElementById("protectionStatus");
- if(status){
-  status.textContent=closed?
-   "Automatic protection closed "+closed+" demo position(s) using the latest daily close.":
-   "Protection checked: no stop-loss or take-profit level was reached at the latest daily close.";
- }
- return closed;
+ document.getElementById("protectionStatus").textContent=closed?
+  "Protection closed "+closed+" demo position(s).":
+  "Protection checked against the latest available daily close.";
 }
 
 function openTrade(){
@@ -531,63 +493,33 @@ function openTrade(){
  tradeBusy=true;
  const btn=document.getElementById("openTrade");
  btn.disabled=true;
-
  try{
   const a=currentAnalysis;
   if(!a||!Number.isFinite(a.price)||a.price<=0){
-   alert("No valid market data. Analyze the instrument first.");
-   return;
+   alert("No valid data. Analyze the instrument first.");return;
   }
-
   const side=document.getElementById("direction").value;
   const risk=Number(document.getElementById("risk").value);
-  if(!["BUY","SELL"].includes(side)||!Number.isFinite(risk)||risk<=0||risk>0.05){
-   alert("Invalid demo trade settings.");
-   return;
+  if(!["BUY","SELL"].includes(side)||risk<=0||risk>.05){
+   alert("Invalid demo settings.");return;
   }
-
-  const duplicate=state.positions.some(p=>
-   p.market===a.market&&p.symbol===a.symbol&&p.side===side
-  );
-  if(duplicate){
-   alert("A position for this instrument and direction is already open.");
-   return;
+  if(state.positions.some(p=>p.market===a.market&&p.symbol===a.symbol&&p.side===side)){
+   alert("A position in this direction is already open.");return;
   }
-
   const equity=accountEquity();
-  const riskBudget=equity*risk;
-  const stopDistance=a.price*.02;
   const qty=Math.floor(Math.min(
-   riskBudget/stopDistance,
-   state.cash/a.price,
+   equity*risk/(a.price*.02),state.cash/a.price,
    equity*.25/a.price
   ));
-
-  if(qty<1){
-   alert("Not enough available demo cash for this position.");
-   return;
-  }
-
-  const reserved=qty*a.price;
-  if(reserved>state.cash){
-   alert("Not enough available demo cash.");
-   return;
-  }
-
+  if(qty<1){alert("Not enough demo cash.");return;}
   const position={
-   id:makeId(),
-   market:a.market,
-   symbol:a.symbol,
-   side,
-   quantity:qty,
-   entry:a.price,
-   stopLoss:side==="BUY"?a.price*.98:a.price*1.02,
-   takeProfit:side==="BUY"?a.price*1.04:a.price*.96,
-   riskBudget,
+   id:makeId(),market:a.market,symbol:a.symbol,side,
+   quantity:qty,entry:a.price,
+   stopLoss:a.price*(side==="BUY"?.98:1.02),
+   takeProfit:a.price*(side==="BUY"?1.04:.96),
    opened:new Date().toISOString()
   };
-
-  state.cash-=reserved;
+  state.cash-=qty*a.price;
   state.positions.push(position);
   saveState();
   renderPortfolio();
@@ -600,51 +532,33 @@ function openTrade(){
 }
 
 function closeAll(){
- if(!state.positions.length){
-  alert("No open demo positions.");
-  return;
- }
+ if(!state.positions.length){alert("No open demo positions.");return;}
  if(!confirm("Close all demo positions?"))return;
-
- while(state.positions.length){
-  if(!closePosition(0,"MANUAL CLOSE ALL"))break;
- }
+ while(state.positions.length)closePosition(0,"MANUAL CLOSE ALL");
  renderPortfolio();
  renderAnalysis();
 }
 
 async function loadData(){
  const status=document.getElementById("dataStatus");
- status.textContent="Loading data from Massive...";
-
+ status.textContent="Loading market data...";
  try{
   const response=await fetch("./prices.json?refresh="+Date.now(),{cache:"no-store"});
   if(!response.ok)throw new Error("HTTP "+response.status);
-
   const data=await response.json();
   if(!data.prices)throw new Error("Missing stocks data");
-
-  feed={
-   stocks:data.prices||{},
-   forex:data.forex||{}
-  };
-
+  feed={stocks:data.prices||{},forex:data.forex||{}};
   setOptions();
-
-  const autoClosed=checkAutoProtection();
+  checkAutoProtection();
   renderAnalysis();
   renderScanner();
   renderPortfolio();
-
   document.getElementById("systemStatus").textContent=
-   "ALQYRON AI 6.4 · Stocks: "+
-   Object.keys(feed.stocks).length+"/4 · Forex: "+
-   Object.keys(feed.forex).length+"/5 · Historical daily data · Demo mode";
-
-  if(autoClosed){
-   document.getElementById("protectionStatus").textContent=
-    autoClosed+" demo position(s) automatically closed after checking the latest daily close.";
-  }
+   "ALQYRON AI 6.5 · Stocks: "+Object.keys(feed.stocks).length+
+   "/4 · Forex: "+Object.keys(feed.forex).length+
+   "/5 · Historical daily data · Demo mode";
+  document.getElementById("recoveryStatus").textContent=
+   "Demo data is saved locally with a backup copy on this device.";
  }catch(e){
   status.textContent="Could not load data: "+e.message;
   document.getElementById("systemStatus").textContent=
@@ -653,17 +567,14 @@ async function loadData(){
 }
 
 document.getElementById("market").addEventListener("change",()=>{
- setOptions();
- renderAnalysis();
+ setOptions();renderAnalysis();
 });
 document.getElementById("asset").addEventListener("change",renderAnalysis);
 document.getElementById("risk").addEventListener("change",renderAnalysis);
 document.getElementById("direction").addEventListener("change",renderAnalysis);
 document.getElementById("analyze").addEventListener("click",renderAnalysis);
-
 document.getElementById("scanButton").addEventListener("click",()=>{
- renderScanner();
- alert("Market scan completed.");
+ renderScanner();alert("Market scan completed.");
 });
 document.getElementById("refresh").addEventListener("click",loadData);
 document.getElementById("openTrade").addEventListener("click",openTrade);
@@ -673,8 +584,7 @@ document.getElementById("positions").addEventListener("click",e=>{
  const b=e.target.closest("[data-close]");
  if(b){
   closePosition(Number(b.dataset.close));
-  renderPortfolio();
-  renderAnalysis();
+  renderPortfolio();renderAnalysis();
  }
 });
 
