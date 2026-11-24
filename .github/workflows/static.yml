@@ -1,5 +1,5 @@
 
-name: Deploy AL Trading Bot
+name: Deploy ALQYRON AI 5.0
 
 on:
   push:
@@ -32,7 +32,7 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - name: Fetch Massive historical stock prices
+      - name: Fetch Stocks and Forex historical prices
         env:
           MASSIVE_API_KEY: ${{ secrets.MASSIVE_API_KEY }}
         run: |
@@ -44,16 +44,20 @@ jobs:
           if not key:
               raise SystemExit("Missing MASSIVE_API_KEY secret")
 
-          tickers = ["AAPL", "MSFT", "NVDA", "TSLA"]
-          stocks = {}
+          stock_tickers = ["AAPL", "MSFT", "NVDA", "TSLA"]
+
+          forex_tickers = {
+              "EUR/USD": "C:EURUSD",
+              "GBP/USD": "C:GBPUSD",
+              "USD/JPY": "C:USDJPY",
+              "AUD/USD": "C:AUDUSD",
+              "USD/CHF": "C:USDCHF"
+          }
 
           end_date = datetime.now(timezone.utc).date() - timedelta(days=1)
           start_date = end_date - timedelta(days=120)
 
-          for i, ticker in enumerate(tickers):
-              if i:
-                  time.sleep(13)
-
+          def fetch_bars(ticker, label):
               params = urllib.parse.urlencode({
                   "adjusted": "true",
                   "sort": "asc",
@@ -68,43 +72,85 @@ jobs:
               )
 
               request = urllib.request.Request(url)
+
               with urllib.request.urlopen(request, timeout=30) as response:
                   data = json.loads(response.read())
 
               if data.get("status") not in ("OK", "DELAYED") or not data.get("results"):
-                  raise SystemExit(f"No historical data for {ticker}: {data}")
+                  raise RuntimeError(f"No historical data for {label}: {data}")
 
               bars = data["results"][-60:]
               latest = bars[-1]
 
-              stocks[ticker] = {
+              return {
                   "open": latest["o"],
                   "high": latest["h"],
                   "low": latest["l"],
                   "close": latest["c"],
-                  "volume": latest["v"],
+                  "volume": latest.get("v", 0),
                   "timestamp": latest["t"],
                   "history": [
                       {
+                          "open": bar["o"],
+                          "high": bar["h"],
+                          "low": bar["l"],
                           "close": bar["c"],
+                          "volume": bar.get("v", 0),
                           "timestamp": bar["t"]
                       }
                       for bar in bars
                   ]
               }
 
-              print(f"{ticker}: downloaded {len(bars)} daily prices")
+          stocks = {}
+          forex = {}
+          forex_errors = []
+          request_count = 0
+
+          for ticker in stock_tickers:
+              if request_count:
+                  time.sleep(13)
+
+              request_count += 1
+              stocks[ticker] = fetch_bars(ticker, ticker)
+
+              print(
+                  f"STOCK {ticker}: "
+                  f"{len(stocks[ticker]['history'])} daily bars"
+              )
+
+          for pair, ticker in forex_tickers.items():
+              if request_count:
+                  time.sleep(13)
+
+              request_count += 1
+
+              try:
+                  forex[pair] = fetch_bars(ticker, pair)
+
+                  print(
+                      f"FOREX {pair}: "
+                      f"{len(forex[pair]['history'])} daily bars"
+                  )
+
+              except Exception as error:
+                  forex_errors.append(f"{pair}: {error}")
+                  print(f"FOREX {pair} unavailable: {error}")
 
           output = {
               "source": "Massive",
               "updated_at": datetime.now(timezone.utc).isoformat(),
-              "prices": stocks
+              "prices": stocks,
+              "forex": forex,
+              "forex_errors": forex_errors
           }
 
           with open("prices.json", "w") as file:
               json.dump(output, file, indent=2)
 
-          print("Historical market data downloaded successfully.")
+          print(f"Stocks ready: {len(stocks)}")
+          print(f"Forex pairs ready: {len(forex)}")
+          print("Market data file created.")
           PY
 
       - name: Upload Pages artifact
