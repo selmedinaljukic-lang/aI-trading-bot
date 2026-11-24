@@ -1,10 +1,11 @@
+
 <!DOCTYPE html>
 <html lang="sl">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#080f1c">
-<title>ALQYRON AI 5.0</title>
+<title>ALQYRON AI 5.1</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;padding:16px;background:#080f1c;color:#edf4ff;font-family:Arial,sans-serif}
@@ -47,7 +48,7 @@ th{color:#91a5c1;font-weight:normal}
 <main>
 <header>
 <h1>ALQYRON AI</h1>
-<div class="sub">VERSION 5.0 Â· STOCKS + FOREX Â· PAPER TRADING</div>
+<div class="sub">VERSION 5.1 · STOCKS + FOREX · PAPER TRADING</div>
 <div style="margin-top:10px"><span class="pill">DEMO MODE</span><span class="pill">NO REAL ORDERS</span></div>
 </header>
 
@@ -95,7 +96,7 @@ th{color:#91a5c1;font-weight:normal}
 <small>Rule-based signal</small><div class="signal yellow" id="signal">HOLD</div>
 <div class="muted" id="signalText" style="font-size:12px">Waiting for market data.</div>
 <div class="bar"><div id="strengthBar"></div></div>
-<div class="notice">Indicator score: <strong id="strength">--</strong>. This is not a probability of profit or a guarantee.</div>
+<div class="notice">Signal strength: <strong id="strength">--</strong>. This is not a probability of profit or a guarantee.</div>
 </div>
 </section>
 
@@ -141,7 +142,7 @@ th{color:#91a5c1;font-weight:normal}
 
 <section class="card">
 <h2>System status</h2>
-<div class="status" id="systemStatus">ALQYRON AI 5.0 Â· Initializing...</div>
+<div class="status" id="systemStatus">ALQYRON AI 5.1 · Initializing...</div>
 <div class="notice">Data source: Massive. Historical daily data. Signals use simple technical rules (RSI, EMA and MACD), not a trained AI model. Educational demo only; not financial advice.</div>
 </section>
 </main>
@@ -242,9 +243,12 @@ function renderAnalysis(){
   sig.className="signal "+(a.signal==="BUY"?"green":a.signal==="SELL"?"red":"yellow");
   document.getElementById("signalText").textContent=a.signal==="BUY"?"Indicators currently lean positive.":
     a.signal==="SELL"?"Indicators currently lean negative.":"Indicators are mixed; no strong directional signal.";
-  document.getElementById("strength").textContent=a.score+"/100";
-  document.getElementById("strengthBar").style.width=a.score+"%";
-  document.getElementById("chartTitle").textContent=labelFor(m,s)+" Â· historical daily prices";
+
+  const strength=a.signal==="BUY"?a.score:a.signal==="SELL"?100-a.score:Math.round(Math.abs(a.score-50)*2);
+  document.getElementById("strength").textContent=strength+"/100";
+  document.getElementById("strengthBar").style.width=strength+"%";
+
+  document.getElementById("chartTitle").textContent=labelFor(m,s)+" · historical daily prices";
   drawChart(a.values);
   const risk=Number(document.getElementById("risk").value),stopDistance=a.price*0.02;
   const budget=state.cash*risk,qty=Math.max(0,Math.floor(Math.min(budget/stopDistance,state.cash/a.price)));
@@ -252,7 +256,7 @@ function renderAnalysis(){
   document.getElementById("target").textContent=number(a.price*1.04);
   document.getElementById("riskAmount").textContent=money(budget);
   document.getElementById("quantity").textContent=qty;
-  document.getElementById("dataStatus").textContent="Historical data loaded Â· "+s+" Â· "+a.values.length+" daily bars";
+  document.getElementById("dataStatus").textContent="Historical data loaded · "+s+" · "+a.values.length+" daily bars";
 }
 function currentPrice(p){
   const a=analyze(p.market,p.symbol);
@@ -322,10 +326,10 @@ async function loadData(){
     setInstrumentOptions();renderAnalysis();renderScanner();renderPortfolio();
     const fxCount=Object.keys(feed.forex).length;
     document.getElementById("systemStatus").textContent=
-      "ALQYRON AI 5.0 Â· Stocks: "+Object.keys(feed.stocks).length+"/"+STOCKS.length+
-      " Â· Forex: "+fxCount+"/"+FX.length+" Â· Historical daily data Â· Demo mode";
+      "ALQYRON AI 5.1 · Stocks: "+Object.keys(feed.stocks).length+"/"+STOCKS.length+
+      " · Forex: "+fxCount+"/"+FX.length+" · Historical daily data · Demo mode";
     if(data.forex_errors&&data.forex_errors.length)
-      status.textContent+=" Â· Some Forex pairs unavailable: "+data.forex_errors.join(" | ");
+      status.textContent+=" · Some Forex pairs unavailable: "+data.forex_errors.join(" | ");
   }catch(e){
     status.textContent="Could not load market data: "+e.message;
     document.getElementById("systemStatus").textContent="Data connection error. Check the Pages deployment and prices.json.";
