@@ -335,58 +335,124 @@ function currentPrice(p){
  const a=analyze(p.market,p.symbol);
  return a?a.price:p.entry;
 }
+
 function renderPortfolio(){
- let value=0,unrealized=0;
+ let unrealized=0;
+ let reserved=0;
+
  const rows=state.positions.map((p,i)=>{
   const px=currentPrice(p);
   const pl=(p.side==="BUY"?px-p.entry:p.entry-px)*p.quantity;
-  value+=p.quantity*px;
+  const margin=p.quantity*p.entry;
+  reserved+=margin;
   unrealized+=pl;
+
   return `<tr><td>${label(p.market,p.symbol)}</td><td>${p.side}</td><td>${p.quantity}</td><td>${fmt(p.entry)}</td><td>${fmt(px)}</td><td class="${pl>=0?"green":"red"}">${money(pl)}</td><td><button data-close="${i}">CLOSE</button></td></tr>`;
  }).join("");
- const realized=state.history.reduce((s,t)=>s+t.pl,0);
+
+ const realized=state.history.reduce((sum,t)=>sum+t.pl,0);
+ const totalPL=realized+unrealized;
+
  document.getElementById("cash").textContent=money(state.cash);
- document.getElementById("portfolio").textContent=money(state.cash+value);
- document.getElementById("totalpl").textContent=money(realized+unrealized);
- document.getElementById("totalpl").className=realized+unrealized>=0?"green":"red";
+ document.getElementById("portfolio").textContent=money(state.cash+reserved+unrealized);
+ document.getElementById("totalpl").textContent=money(totalPL);
+ document.getElementById("totalpl").className=totalPL>=0?"green":"red";
  document.getElementById("openCount").textContent=state.positions.length;
- document.getElementById("positions").innerHTML=rows||'<tr><td colspan="7">No open positions.</td></tr>';
- document.getElementById("history").innerHTML=state.history.slice().reverse().map(t=>
-  `<tr><td>${label(t.market,t.symbol)}</td><td>${t.side}</td><td>${t.quantity}</td><td>${fmt(t.entry)}</td><td>${fmt(t.exit)}</td><td class="${t.pl>=0?"green":"red"}">${money(t.pl)}</td></tr>`
- ).join("")||'<tr><td colspan="6">No completed trades.</td></tr>';
+
+ document.getElementById("positions").innerHTML=
+  rows||'<tr><td colspan="7">No open positions.</td></tr>';
+
+ document.getElementById("history").innerHTML=
+  state.history.slice().reverse().map(t=>
+   `<tr><td>${label(t.market,t.symbol)}</td><td>${t.side}</td><td>${t.quantity}</td><td>${fmt(t.entry)}</td><td>${fmt(t.exit)}</td><td class="${t.pl>=0?"green":"red"}">${money(t.pl)}</td></tr>`
+  ).join("")||'<tr><td colspan="6">No completed trades.</td></tr>';
+
  saveState();
 }
+
 function openTrade(){
  const a=currentAnalysis;
- if(!a){alert("No market data available.");return;}
+ if(!a){
+  alert("No market data available.");
+  return;
+ }
+ if(!Number.isFinite(a.price)||a.price<=0){
+  alert("Invalid market price.");
+  return;
+ }
+
  const side=document.getElementById("direction").value;
- const budget=state.cash*Number(document.getElementById("risk").value);
- const distance=a.price*.02;
- const qty=Math.floor(Math.min(budget/distance,state.cash/a.price));
- if(qty<1){alert("Not enough demo cash for this position.");return;}
- const cost=qty*a.price;
- state.cash-=cost;
+ const risk=Number(document.getElementById("risk").value);
+ if(!["BUY","SELL"].includes(side)||!Number.isFinite(risk)||risk<=0||risk>0.05){
+  alert("Invalid demo trade settings.");
+  return;
+ }
+
+ // Position size uses the selected risk budget and a 2% reference stop.
+ const riskBudget=state.cash*risk;
+ const stopDistance=a.price*0.02;
+ const qty=Math.floor(Math.min(riskBudget/stopDistance,state.cash/a.price));
+ if(qty<1){
+  alert("Not enough demo cash for this position.");
+  return;
+ }
+
+ const reserved=qty*a.price;
+ state.cash-=reserved;
+
  state.positions.push({
-  market:a.market,symbol:a.symbol,side,quantity:qty,entry:a.price,
+  market:a.market,
+  symbol:a.symbol,
+  side,
+  quantity:qty,
+  entry:a.price,
   opened:new Date().toISOString()
  });
- saveState();renderPortfolio();renderAnalysis();
+
+ saveState();
+ renderPortfolio();
+ renderAnalysis();
  alert("Demo position opened. No real order was sent.");
 }
+
 function closePosition(i){
- const p=state.positions[i];if(!p)return;
+ const p=state.positions[i];
+ if(!p)return;
+
  const exit=currentPrice(p);
+ if(!Number.isFinite(exit)||exit<=0){
+  alert("Cannot close position: invalid market price.");
+  return;
+ }
+
  const pl=(p.side==="BUY"?exit-p.entry:p.entry-exit)*p.quantity;
- state.cash+=p.quantity*exit;
- state.history.push({...p,exit,pl,closed:new Date().toISOString()});
+ const reserved=p.quantity*p.entry;
+
+ // Return the reserved amount plus the realized profit or loss.
+ state.cash+=reserved+pl;
+
+ state.history.push({
+  ...p,
+  exit,
+  pl,
+  closed:new Date().toISOString()
+ });
+
  state.positions.splice(i,1);
- saveState();renderPortfolio();renderAnalysis();
+ saveState();
+ renderPortfolio();
+ renderAnalysis();
 }
+
 function closeAll(){
- if(!state.positions.length){alert("No open demo positions.");return;}
+ if(!state.positions.length){
+  alert("No open demo positions.");
+  return;
+ }
  if(!confirm("Close all demo positions?"))return;
  while(state.positions.length)closePosition(0);
 }
+
 async function loadData(){
  const status=document.getElementById("dataStatus");
  status.textContent="Loading data from Massive...";
@@ -408,11 +474,18 @@ async function loadData(){
   document.getElementById("systemStatus").textContent="Data connection error. Check prices.json and GitHub Pages.";
  }
 }
-document.getElementById("market").addEventListener("change",()=>{setOptions();renderAnalysis();});
+
+document.getElementById("market").addEventListener("change",()=>{
+ setOptions();
+ renderAnalysis();
+});
 document.getElementById("asset").addEventListener("change",renderAnalysis);
 document.getElementById("risk").addEventListener("change",renderAnalysis);
 document.getElementById("analyze").addEventListener("click",renderAnalysis);
-document.getElementById("scanButton").addEventListener("click",()=>{renderScanner();alert("Market scan completed.");});
+document.getElementById("scanButton").addEventListener("click",()=>{
+ renderScanner();
+ alert("Market scan completed.");
+});
 document.getElementById("refresh").addEventListener("click",loadData);
 document.getElementById("openTrade").addEventListener("click",openTrade);
 document.getElementById("closeAll").addEventListener("click",closeAll);
@@ -420,7 +493,10 @@ document.getElementById("positions").addEventListener("click",e=>{
  const b=e.target.closest("[data-close]");
  if(b)closePosition(Number(b.dataset.close));
 });
-window.addEventListener("resize",()=>{if(currentAnalysis)drawChart(currentAnalysis.values);});
+window.addEventListener("resize",()=>{
+ if(currentAnalysis)drawChart(currentAnalysis.values);
+});
+
 setOptions();
 renderPortfolio();
 loadData();
